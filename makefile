@@ -1,5 +1,5 @@
 CC=c++
-CFLAGS=-std=c++17
+CFLAGS=-std=c++17 -Iinclude
 
 test:
-	$(CC) -o test test.cpp $< $(CFLAGS)
+	$(CC) -o test example.cpp $< $(CFLAGS)
