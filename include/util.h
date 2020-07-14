@@ -73,13 +73,10 @@ struct is_de_serializable<P, std::void_t<
 
 //---------- SFINAE check if functions are eligible to chaining in given order ----------
 
-template <typename T>
-using remove_cvr = std::remove_cv_t<std::remove_reference_t<T>>;
-
 template <typename T, typename... Ts>
 constexpr bool are_chainable() {
-    using return_type = remove_cvr<typename signature<T>::return_type>;
-    using arg_types = std::tuple<remove_cvr<typename signature<Ts>::arg_type>...>;
+    using return_type = std::decay_t<typename signature<T>::return_type>;
+    using arg_types = std::tuple<std::decay_t<typename signature<Ts>::arg_type>...>;
     if constexpr (sizeof...(Ts) > 0) {
         return std::is_same_v<
                    return_type, std::tuple_element_t<0, arg_types>> &&

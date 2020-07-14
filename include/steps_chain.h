@@ -82,7 +82,7 @@ private:
     template <size_t idx>
     static auto make_invoker() {
         return [](steps_type& steps, current_arguments_type& data) -> size_t {
-            using argument_type = remove_cvr<
+            using argument_type = std::decay_t<
                 typename signature<std::tuple_element_t<idx, steps_type>>::arg_type>;
             data = std::get<idx>(steps)(std::get<argument_type>(data));
             return idx + 1;
@@ -115,7 +115,7 @@ private:
     template <size_t idx>
     static auto make_deserializer() {
         return [](current_arguments_type& data, std::string parameters) -> void {
-            using argument_type = remove_cvr<
+            using argument_type = std::decay_t<
                 typename signature<std::tuple_element_t<idx, steps_type>>::arg_type>;
             data = argument_type{std::move(parameters)};
         };
@@ -138,7 +138,7 @@ private:
     template <size_t idx>
     static auto make_serializer() {
         return [](const current_arguments_type& data) -> std::string {
-            using arg_type = remove_cvr<
+            using arg_type = std::decay_t<
                 typename signature<std::tuple_element_t<idx, steps_type>>::arg_type>;
             return std::get<arg_type>(data).serialize();
         };
@@ -164,15 +164,15 @@ private:
     // ----- Data members and aliases -----
 
     using steps_type = std::tuple<Steps...>;
-    using result_type = remove_cvr<
+    using result_type = std::decay_t<
         typename signature<std::tuple_element_t<sizeof...(Steps) - 1, steps_type>>::return_type>;
     using current_arguments_type =
-        unique_variant<remove_cvr<typename signature<Steps>::arg_type>..., result_type>;
+        unique_variant<std::decay_t<typename signature<Steps>::arg_type>..., result_type>;
 
     using all_de_serializable =
         typename std::conditional<
             is_de_serializable<result_type>::value &&
-                (is_de_serializable<remove_cvr<typename signature<Steps>::arg_type>>::value && ...),
+                (is_de_serializable<std::decay_t<typename signature<Steps>::arg_type>>::value && ...),
             std::true_type,
             std::false_type>::type;
     static_assert(all_de_serializable::value,
