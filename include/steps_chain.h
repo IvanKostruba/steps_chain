@@ -99,14 +99,16 @@ private:
     }
 
     void execute_from(size_t begin_idx) {
-        static auto& table = invoke_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
+        static const auto& table =
+            invoke_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
         for (size_t i = begin_idx; i < sizeof...(Steps); ++i) {
             _current = table[i](_steps, _current_args);
         }
     }
 
     void execute_current() {
-        static auto& table = invoke_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
+        static const auto& table =
+            invoke_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
         _current = table[_current](_steps, _current_args);
     }
 
@@ -129,7 +131,8 @@ private:
     }
 
     void deserialize_arguments(size_t step, std::string parameters) {
-        static auto& table = deserialize_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
+        static const auto& table =
+            deserialize_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
         table[step](_current_args, std::move(parameters));
     }
 
@@ -153,7 +156,8 @@ private:
 
     std::string serialize_current_args() const {
         if (_current < sizeof...(Steps)) {
-            static auto& table = serialize_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
+            static const auto& table =
+                serialize_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
             return table[_current](_current_args);
         }
         else {

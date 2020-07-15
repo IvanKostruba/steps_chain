@@ -69,7 +69,7 @@ private:
         model(T x) : _data{std::move(x)} {
         }
 
-        std::unique_ptr<chain_concept> copy() { 
+        std::unique_ptr<chain_concept> copy() override { 
             return std::make_unique<model>(*this);
         }
 
