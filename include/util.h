@@ -14,6 +14,15 @@ template <typename T>
 struct signature {
     using return_type = typename signature<decltype(&T::operator())>::return_type;
     using arg_type = typename signature<decltype(&T::operator())>::arg_type;
+    using context_type = typename signature<decltype(&T::operator())>::context_type;;
+};
+
+// Function type unwrapper for two arguments
+template <typename R, typename T, typename C>
+struct signature<R(T, C)> {
+    using return_type = R;
+    using arg_type = T;
+    using context_type = C;
 };
 
 // Core function type unwrapper
@@ -21,19 +30,22 @@ template <typename R, typename T>
 struct signature<R(T)> {
     using return_type = R;
     using arg_type = T;
+    using context_type = void;
 };
 
 template <typename R>
 struct signature<R()> {
     using return_type = R;
     using arg_type = void;
+    using context_type = void;
 };
 
-// We are not interested in functions with multiple arguments
+// We are not interested in functions with 3+ arguments
 template <typename R, typename T, typename... Ts>
 struct signature<R(T, Ts...)> {
     using return_type = void;
     using arg_type = void;
+    using context_type = void;
 };
 
 // Match with function pointers
@@ -59,10 +71,10 @@ struct signature<R (C::*)(T, Ts...) const> : public signature<R(T, Ts...)> {};
 //---------- SFINAE parameters type requirements ----------
 
 template <class P, class = void>
-struct is_de_serializable : std::false_type {};
+struct is_serializable : std::false_type {};
 
 template <class P>
-struct is_de_serializable<P, std::void_t<
+struct is_serializable<P, std::void_t<
     std::enable_if_t<
         std::is_same_v<
             decltype(std::declval<P>().serialize()),
@@ -77,9 +89,13 @@ template <typename T, typename... Ts>
 constexpr bool are_chainable() {
     using return_type = std::decay_t<typename signature<T>::return_type>;
     using arg_types = std::tuple<std::decay_t<typename signature<Ts>::arg_type>...>;
+    using context_type = std::decay_t<typename signature<T>::context_type>;
+    using next_contexts = std::tuple<std::decay_t<typename signature<Ts>::context_type>...>;
     if constexpr (sizeof...(Ts) > 0) {
         return std::is_same_v<
-                   return_type, std::tuple_element_t<0, arg_types>> &&
+                    return_type, std::tuple_element_t<0, arg_types>> &&
+               std:: is_same_v<
+                    context_type, std::tuple_element_t<0, next_contexts>> &&
                are_chainable<Ts...>();
     }
     else {

@@ -1,5 +1,6 @@
 #include "chain_wrapper.h"
 #include "steps_chain.h"
+#include "context_steps_chain.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -17,7 +18,7 @@ struct EmptyParameter {
     explicit EmptyParameter(const std::string &str) {}
     std::string serialize() const { return "EmptyParameter"; }
 };
-static_assert(helpers::is_de_serializable<EmptyParameter>::value,
+static_assert(helpers::is_serializable<EmptyParameter>::value,
               "EmptyParameter must be valid!");
 
 struct IntParameter {
@@ -27,7 +28,7 @@ struct IntParameter {
 
     int _value;
 };
-static_assert(helpers::is_de_serializable<IntParameter>::value,
+static_assert(helpers::is_serializable<IntParameter>::value,
               "IntParameter must be valid!");
 
 struct StringParameter {
@@ -36,7 +37,7 @@ struct StringParameter {
 
     std::string _value;
 };
-static_assert(helpers::is_de_serializable<StringParameter>::value,
+static_assert(helpers::is_serializable<StringParameter>::value,
               "StringParameter must be valid!");
 
 // ---------- Test functions that just do output ----------
@@ -95,20 +96,20 @@ private:
     int _val;
 };
 
-// ---------- Testing is_de_serializable on invalid types ----------
+// ---------- Testing is_serializable on invalid types ----------
 
 struct InvalidParameterWrongSerialize {
     InvalidParameterWrongSerialize(std::string &&s) {}
     int serialize() { return 42; }
 };
 
-static_assert(!helpers::is_de_serializable<InvalidParameterWrongSerialize>::value,
+static_assert(!helpers::is_serializable<InvalidParameterWrongSerialize>::value,
               "InvalidParameterWrongSerialize must be detected as invalid!");
 
 struct InvalidParameterNoStringCtor {
     std::string serialize() const { return ""; }
 };
-static_assert(!helpers::is_de_serializable<InvalidParameterNoStringCtor>::value,
+static_assert(!helpers::is_serializable<InvalidParameterNoStringCtor>::value,
               "InvalidParameterNoStringCtor must be detected as invalid!");
 
 // ---------- Testing helpers::are_chainable  ----------
@@ -207,4 +208,21 @@ int main(int argc, char **argv) {
 
     std::cout << "\nChecking the copy we made before from [chain_1]:\n";
     print_status(wrapperCopy);
+
+    std::cout << "\nTest wrapper with external context.\n";
+    auto ctx_chain = ContextStepsChain{
+        [](EmptyParameter& p, int ctx) -> IntParameter {
+            std::cout << "Lambda with context [" << ctx << "] ( EmptyParameter )\n";
+            return IntParameter{33};
+        },
+        [](IntParameter& p, int ctx) -> EmptyParameter {
+            std::cout << "Lambda with context [" << ctx
+                << "] ( IntParameter{ " << p._value << " } )\n";
+            return EmptyParameter{};
+        }
+    };
+    ctx_chain.initialize("");
+    ctx_chain.advance(88);
+    ctx_chain.resume(99);
+    print_status(ctx_chain);
 }
