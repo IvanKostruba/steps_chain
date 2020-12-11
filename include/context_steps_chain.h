@@ -11,30 +11,34 @@ namespace steps_chain {
 
 using namespace helpers;
 
-// TODO: add description
+// The idea of this class is fundamentally the same as StepsChain. The difference is that callables
+// here require some external context to run, not just result of the previous call, so they take
+// two arguments, second being the context. The context argument type must be identical for all the
+// callables (i.e. always passed by const ref or always by value). If context is passed by value
+// it's still being moved 4 times internally.
 
 template <typename... Steps>
 class ContextStepsChain
 {
 public:
     using steps_type = std::tuple<Steps...>;
-    using context_type = std::decay_t<
-        typename signature<std::tuple_element_t<0, steps_type>>::context_type>;
+    using context_type = typename signature<std::tuple_element_t<0, steps_type>>::context_type;
     static_assert(!std::is_same_v<context_type, void>,
                   "ContextStepsChain steps must have 2 arguments.");
     static_assert(are_chainable<Steps...>(),
-                  "Return type of the previous function must be the same as argument type of the next.");
-                  
+                  "Return type of the previous function must be the same as argument type of the " \
+                  "next, and second argument ('context') types must be identical.");
+
     ContextStepsChain(Steps... steps) : _steps{steps...}, _current{0} {}
 
     // Run all remaining steps, beginnig with given index.
-    void run(std::string parameters, const context_type& ctx, size_t begin_idx = 0) {
+    void run(std::string parameters, context_type ctx, size_t begin_idx = 0) {
         if (begin_idx >= sizeof...(Steps)) {
             // TODO: introduce error handling, maybe exception?
             return;
         }
         initialize(std::move(parameters), begin_idx);
-        execute_from(begin_idx, ctx);
+        execute_from(begin_idx, std::move(ctx));
     }
 
     // Just initializer, intended to be used in pair with advance()
@@ -46,19 +50,19 @@ public:
         _current = current_idx;
     }
 
-    void advance(const context_type& ctx) {
+    void advance(context_type ctx) {
         if (_current >= sizeof...(Steps)) {
             return;
         }
-        execute_current(ctx);
+        execute_current(std::move(ctx));
     }
 
     // Run all remaining steps, beginning with current index.
-    void resume(const context_type& ctx) {
+    void resume(context_type ctx) {
         if (_current >= sizeof...(Steps)) {
             return;
         }
-        execute_from(_current, ctx);
+        execute_from(_current, std::move(ctx));
     }
 
     // Get step index and serialized arguments for current step so that they can be stored.
@@ -74,10 +78,10 @@ private:
 
     template <size_t idx>
     static auto make_invoker() {
-        return [](steps_type& steps, current_arguments_type& data, const context_type& ctx) -> size_t {
+        return [](steps_type& steps, current_arguments_type& data, context_type ctx) -> size_t {
             using argument_type = std::decay_t<
                 typename signature<std::tuple_element_t<idx, steps_type>>::arg_type>;
-            data = std::get<idx>(steps)(std::get<argument_type>(data), ctx);
+            data = std::get<idx>(steps)(std::get<argument_type>(data), std::move(ctx));
             return idx + 1;
         };
     }
@@ -91,23 +95,23 @@ private:
                 size_t(
                     steps_type&,
                     current_arguments_type&,
-                    const context_type&
+                    context_type
                 )>, sizeof...(Idx)> invoke_dispatch = {make_invoker<Idx>()...};
         return invoke_dispatch;
     }
 
-    void execute_from(size_t begin_idx, const context_type& ctx) {
+    void execute_from(size_t begin_idx, context_type ctx) {
         static const auto& table =
             invoke_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
         for (size_t i = begin_idx; i < sizeof...(Steps); ++i) {
-            _current = table[i](_steps, _current_args, ctx);
+            _current = table[i](_steps, _current_args, std::move(ctx));
         }
     }
 
-    void execute_current(const context_type& ctx) {
+    void execute_current(context_type ctx) {
         static const auto& table =
             invoke_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
-        _current = table[_current](_steps, _current_args, ctx);
+        _current = table[_current](_steps, _current_args, std::move(ctx));
     }
 
     // ----- Instantiate deserialization methods -----    

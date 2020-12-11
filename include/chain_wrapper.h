@@ -15,6 +15,14 @@ public:
     ChainWrapper(T x) : _self{std::make_unique<model<T>>(std::move(x))} {
     }
 
+    // Wrapper can hold context for ContextStepsChain, but then it will be copied (or moved)
+    // in the ctor, and there are 2 more moves involved when creating polymorphic concept.
+    // Use smart pointers to avoid copying heavy instances.
+    template <typename T, typename C>
+    ChainWrapper(T x, C c) :
+        _self{std::make_unique<context_model<T, C>>(std::move(x), std::move(c))} {
+    }
+
     ChainWrapper(const ChainWrapper& other) : _self{other._self->copy()} {
     }
 
@@ -93,6 +101,38 @@ private:
         }
 
         T _data;
+    };
+
+    template <typename T, typename C>
+    struct context_model final : chain_concept {
+        context_model(T x, C ctx) : _data{std::move(x)}, _context{std::move(ctx)} {
+        }
+
+        std::unique_ptr<chain_concept> copy() override { 
+            return std::make_unique<context_model>(*this);
+        }
+
+        void run(std::string parameters, size_t begin) override {
+            _data.run(std::move(parameters), _context, begin);
+        }
+        void initialize(std::string parameters, size_t begin) override {
+            _data.initialize(std::move(parameters), begin);
+        }
+        void advance() override {
+            _data.advance(_context);
+        }
+        void resume() override {
+            _data.resume(_context);
+        }
+        std::tuple<size_t, std::string> get_current_state() const override {
+            return _data.get_current_state();
+        }
+        bool is_finished() const override {
+            return _data.is_finished();
+        }
+
+        T _data;
+        C _context;
     };
 
     std::unique_ptr<chain_concept> _self;

@@ -89,8 +89,8 @@ template <typename T, typename... Ts>
 constexpr bool are_chainable() {
     using return_type = std::decay_t<typename signature<T>::return_type>;
     using arg_types = std::tuple<std::decay_t<typename signature<Ts>::arg_type>...>;
-    using context_type = std::decay_t<typename signature<T>::context_type>;
-    using next_contexts = std::tuple<std::decay_t<typename signature<Ts>::context_type>...>;
+    using context_type = typename signature<T>::context_type;
+    using next_contexts = std::tuple<typename signature<Ts>::context_type...>;
     if constexpr (sizeof...(Ts) > 0) {
         return std::is_same_v<
                     return_type, std::tuple_element_t<0, arg_types>> &&

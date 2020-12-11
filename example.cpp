@@ -2,6 +2,7 @@
 #include "steps_chain.h"
 #include "context_steps_chain.h"
 
+#include <cassert>
 #include <cstdlib>
 #include <iostream>
 #include <string>
@@ -40,6 +41,22 @@ struct StringParameter {
 static_assert(helpers::is_serializable<StringParameter>::value,
               "StringParameter must be valid!");
 
+// ---------- Context is something that can be known only when chain is running ----------
+
+struct Context {
+    static size_t copy_count;
+    static size_t move_count;
+
+    Context() {}
+    Context(const Context& other) { std::cout << "Context copy\n"; ++copy_count; }
+    Context(Context&& other) noexcept { std::cout << "Context move\n"; ++move_count; }
+
+    int getValue() const { return 88; }
+};
+
+size_t Context::copy_count = 0;
+size_t Context::move_count = 0;
+
 // ---------- Test functions that just do output ----------
 
 EmptyParameter boo(const EmptyParameter &) {
@@ -47,10 +64,22 @@ EmptyParameter boo(const EmptyParameter &) {
     return EmptyParameter{};
 }
 
+EmptyParameter boo_ctx(const EmptyParameter &, Context c) {
+    std::cout << "  # Step output: boo( EmptyParameter, Context["
+        << c.getValue() << "] ) -> EmptyParameter\n";
+    return EmptyParameter{};
+}
+
 EmptyParameter goo(EmptyParameter) {
     std::cout << "  # Step output: goo( EmptyParameter ) -> EmptyParameter\n";
     return EmptyParameter{};
 }
+
+EmptyParameter goo_ctx(EmptyParameter, const Context&) {
+    std::cout << "  # Step output: goo( EmptyParameter, const Context& ) -> EmptyParameter\n";
+    return EmptyParameter{};
+}
+
 EmptyParameter goo_throw(const EmptyParameter &) {
     static size_t flag = 0;
     if (++flag == 1) {
@@ -115,7 +144,10 @@ static_assert(!helpers::is_serializable<InvalidParameterNoStringCtor>::value,
 // ---------- Testing helpers::are_chainable  ----------
 
 static_assert(helpers::are_chainable<decltype(boo)>(), "Single-element chain should be always valid!");
-static_assert(!helpers::are_chainable<decltype(hoo), decltype(boo)>(), "Mismatched signatures must be detected!");
+static_assert(!helpers::are_chainable<decltype(hoo), decltype(boo)>(),
+    "Mismatched signatures must be detected!");
+static_assert(!helpers::are_chainable<decltype(boo_ctx), decltype(goo_ctx)>(),
+    "Mismatched context types must be detected!");
 
 // ---------- Output helper ----------
 
@@ -210,19 +242,40 @@ int main(int argc, char **argv) {
     print_status(wrapperCopy);
 
     std::cout << "\nTest wrapper with external context.\n";
-    auto ctx_chain = ContextStepsChain{
-        [](EmptyParameter& p, int ctx) -> IntParameter {
-            std::cout << "Lambda with context [" << ctx << "] ( EmptyParameter )\n";
+    auto ctx_lambda_chain = ContextStepsChain {
+        [](EmptyParameter& p, const Context& ctx) -> IntParameter {
+            std::cout << "Lambda with context [" << ctx.getValue() << "] ( EmptyParameter )\n";
             return IntParameter{33};
         },
-        [](IntParameter& p, int ctx) -> EmptyParameter {
-            std::cout << "Lambda with context [" << ctx
+        [](IntParameter& p, const Context& ctx) -> EmptyParameter {
+            std::cout << "Lambda with context [" << ctx.getValue()
                 << "] ( IntParameter{ " << p._value << " } )\n";
             return EmptyParameter{};
         }
     };
-    ctx_chain.initialize("");
-    ctx_chain.advance(88);
-    ctx_chain.resume(99);
-    print_status(ctx_chain);
+    Context c;
+    ctx_lambda_chain.initialize("");
+    ctx_lambda_chain.advance(c);
+    ctx_lambda_chain.resume(c);
+    print_status(ctx_lambda_chain);
+    assert((Context::copy_count == 0 && Context::move_count == 0)
+        && "Context passed by ref, no copying/moving should be involved.");
+
+    auto ctx_value_chain = ContextStepsChain {
+        boo_ctx
+    };
+    ctx_value_chain.run("", c);
+    print_status(ctx_value_chain);
+    // When context is passed by value it should be copied once and then moved internally.
+    assert((Context::copy_count == 1 && Context::move_count == 4)
+        && "Context passed by value, should be copied only once.");
+    
+    Context::copy_count = 0;
+    Context::move_count = 0;
+    chains.insert( { "context_chain", ChainWrapper{ ContextStepsChain{goo_ctx, goo_ctx}, c } } );
+    chains["context_chain"].run("");
+    print_status(chains["context_chain"]);
+    assert((Context::copy_count == 1 && Context::move_count == 2)
+        && "Context passed by ref into the function, and wrapper copies it only once" \
+        " (but there are internal moves in the wrapper).");
 }
