@@ -78,7 +78,7 @@ struct is_serializable<P, std::void_t<
     std::enable_if_t<
         std::is_same_v<
             decltype(std::declval<P>().serialize()),
-            std::string>
+            std::string>  // TODO: add const string support
         && std::is_constructible<P, std::string>::value,
         int>,
     void>> : std::true_type {};

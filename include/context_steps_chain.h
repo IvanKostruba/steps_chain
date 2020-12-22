@@ -4,7 +4,6 @@
 #include "marshalling_helper.h"
 
 #include <array>
-#include <functional>
 #include <tuple>
 
 namespace steps_chain {
@@ -15,7 +14,7 @@ using namespace helpers;
 // here require some external context to run, not just result of the previous call, so they take
 // two arguments, second being the context. The context argument type must be identical for all the
 // callables (i.e. always passed by const ref or always by value). If context is passed by value
-// it's still being moved 4 times internally.
+// it's still being moved 3 times internally.
 
 template <typename... Steps>
 class ContextStepsChain
@@ -91,12 +90,11 @@ private:
     template <size_t... Idx>
     static auto invoke_dispatch_table(std::index_sequence<Idx...>) {
         static std::array<
-            std::function<
-                size_t(
-                    steps_type&,
-                    current_arguments_type&,
-                    context_type
-                )>, sizeof...(Idx)> invoke_dispatch = {make_invoker<Idx>()...};
+            size_t(*)(
+                steps_type&,
+                current_arguments_type&,
+                context_type
+            ), sizeof...(Idx)> invoke_dispatch = {make_invoker<Idx>()...};
         return invoke_dispatch;
     }
 

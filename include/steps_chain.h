@@ -4,7 +4,6 @@
 #include "marshalling_helper.h"
 
 #include <array>
-#include <functional>
 #include <tuple>
 
 namespace steps_chain {
@@ -93,7 +92,7 @@ private:
     // different logic, or even same function can be repeated. So std::get by type may not help us.
     template <size_t... Idx>
     static auto invoke_dispatch_table(std::index_sequence<Idx...>) {
-        static std::array<std::function<size_t(steps_type&, current_arguments_type&)>, sizeof...(Idx)>
+        static std::array<size_t(*)(steps_type&, current_arguments_type&), sizeof...(Idx)>
             invoke_dispatch = {make_invoker<Idx>()...};
         return invoke_dispatch;
     }

@@ -3,6 +3,7 @@
 #include "context_steps_chain.h"
 
 #include <cassert>
+#include <chrono>
 #include <cstdlib>
 #include <iostream>
 #include <string>
@@ -31,6 +32,16 @@ struct IntParameter {
 };
 static_assert(helpers::is_serializable<IntParameter>::value,
               "IntParameter must be valid!");
+
+struct TwoIntParameter {
+    TwoIntParameter() : _a{1}, _b{1} {}
+    TwoIntParameter(int a, int b) : _a{a}, _b{b} {}
+    explicit TwoIntParameter(std::string&& s) { _b = _a = std::stoi(s); }
+    std::string serialize() const { return std::to_string(_a); }  // it's deliberately broken
+
+    int _a;
+    int _b;
+};
 
 struct StringParameter {
     explicit StringParameter(std::string s) : _value{std::move(s)} {}
@@ -93,6 +104,14 @@ EmptyParameter goo_throw(const EmptyParameter &) {
 auto hoo(EmptyParameter &) {
     std::cout << "  # Step output: hoo( EmptyParameter ) -> IntParameter{ 11 }\n";
     return IntParameter{11};
+}
+
+TwoIntParameter fibo(const TwoIntParameter& in) {
+    return TwoIntParameter{in._b, in._a + in._b};
+}
+
+IntParameter fibo_final(const TwoIntParameter& in) {
+    return IntParameter{in._a + in._b};
 }
 
 // ---------- Test class ----------
@@ -267,7 +286,7 @@ int main(int argc, char **argv) {
     ctx_value_chain.run("", c);
     print_status(ctx_value_chain);
     // When context is passed by value it should be copied once and then moved internally.
-    assert((Context::copy_count == 1 && Context::move_count == 4)
+    assert((Context::copy_count == 1 && Context::move_count == 3)
         && "Context passed by value, should be copied only once.");
     
     Context::copy_count = 0;
@@ -278,4 +297,16 @@ int main(int argc, char **argv) {
     assert((Context::copy_count == 1 && Context::move_count == 2)
         && "Context passed by ref into the function, and wrapper copies it only once" \
         " (but there are internal moves in the wrapper).");
+
+    std::array<ChainWrapper, 100000> arr;
+    for (size_t i = 0; i < 100000; ++i) {
+        arr[i] = ChainWrapper{StepsChain{fibo, fibo, fibo, fibo_final}};
+    }
+    auto t1 = std::chrono::high_resolution_clock::now();
+    for (size_t i = 0; i < 100000; ++i) {
+        arr[i].resume();
+    }
+    auto t2 = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+    std::cout << "runtime: " << duration << "us\n";
 }

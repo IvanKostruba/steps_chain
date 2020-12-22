@@ -3,7 +3,6 @@
 #include "util.h"
 
 #include <array>
-#include <functional>
 #include <tuple>
 
 namespace steps_chain {
@@ -22,7 +21,7 @@ struct MarshallingInvokeTables {
 
     template <size_t... Idx>
     static auto deserialize_dispatch_table(std::index_sequence<Idx...>) {
-        static std::array<std::function<void(Arg&, std::string)>, sizeof...(Idx)>
+        static std::array<void(*)(Arg&, std::string), sizeof...(Idx)>
             deserialize_dispatch = {make_deserializer<Idx>()...};
         return deserialize_dispatch;
     }
@@ -38,7 +37,7 @@ struct MarshallingInvokeTables {
 
     template <size_t... Idx>
     static auto serialize_dispatch_table(std::index_sequence<Idx...>) {
-        static std::array<std::function<std::string(const Arg&)>, sizeof...(Idx)>
+        static std::array<std::string(*)(const Arg&), sizeof...(Idx)>
             serialize_dispatch = {make_serializer<Idx>()...};
         return serialize_dispatch;
     }
