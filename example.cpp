@@ -1,6 +1,7 @@
 #include "chain_wrapper.h"
 #include "steps_chain.h"
 #include "context_steps_chain.h"
+#include "local_storage_wrapper.h"
 
 #include <cassert>
 #include <chrono>
@@ -297,16 +298,39 @@ int main(int argc, char **argv) {
     assert((Context::copy_count == 1 && Context::move_count == 2)
         && "Context passed by ref into the function, and wrapper copies it only once" \
         " (but there are internal moves in the wrapper).");
-
-    std::array<ChainWrapper, 100000> arr;
-    for (size_t i = 0; i < 100000; ++i) {
-        arr[i] = ChainWrapper{StepsChain{fibo, fibo, fibo, fibo_final}};
+    constexpr size_t SIZE = 100000;
+    {
+        auto t1 = std::chrono::high_resolution_clock::now();
+        std::array<ChainWrapper, SIZE> arr;
+        for (size_t i = 0; i < SIZE; ++i) {
+            arr[i] = ChainWrapper{StepsChain{fibo, fibo, fibo, fibo_final}};
+        }
+        auto t2 = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+        std::cout << "init time: " << duration << "\n";
+        t1 = std::chrono::high_resolution_clock::now();
+        for (size_t i = 0; i < SIZE; ++i) {
+            arr[i].resume();
+        }
+        t2 = std::chrono::high_resolution_clock::now();
+        duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+        std::cout << "runtime: " << duration << "\n";
     }
-    auto t1 = std::chrono::high_resolution_clock::now();
-    for (size_t i = 0; i < 100000; ++i) {
-        arr[i].resume();
+    {
+        auto t1 = std::chrono::high_resolution_clock::now();
+        std::array<ChainWrapperLS, SIZE> farr;
+        for (size_t i = 0; i < SIZE; ++i) {
+            farr[i] = ChainWrapperLS{StepsChain{fibo, fibo, fibo, fibo_final}};
+        }
+        auto t2 = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+        std::cout << "init time (fancy local): " << duration << "\n";
+        t1 = std::chrono::high_resolution_clock::now();
+        for (size_t i = 0; i < SIZE; ++i) {
+            farr[i].resume();
+        }
+        t2 = std::chrono::high_resolution_clock::now();
+        duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+        std::cout << "runtime (fancy local): " << duration << "\n";
     }
-    auto t2 = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-    std::cout << "runtime: " << duration << "us\n";
 }
