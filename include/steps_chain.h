@@ -135,6 +135,11 @@ private:
     // ----- Data members and aliases -----
 
     using steps_type = std::tuple<Steps...>;
+    static_assert(
+        std::is_default_constructible_v<
+            std::decay_t<typename signature<std::tuple_element_t<0, steps_type>>::arg_type>>,
+        "The argument type of the first step must be default-constructible"
+    );
     using result_type = std::decay_t<
         typename signature<std::tuple_element_t<sizeof...(Steps) - 1, steps_type>>::return_type>;
     using current_arguments_type =

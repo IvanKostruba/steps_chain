@@ -24,6 +24,11 @@ public:
     using context_type = typename signature<std::tuple_element_t<0, steps_type>>::context_type;
     static_assert(!std::is_same_v<context_type, void>,
                   "ContextStepsChain steps must have 2 arguments.");
+    static_assert(
+        std::is_default_constructible_v<
+            std::decay_t<typename signature<std::tuple_element_t<0, steps_type>>::arg_type>>,
+        "The argument type of the first step must be default-constructible"
+    );
     static_assert(are_chainable<Steps...>(),
                   "Return type of the previous function must be the same as argument type of the " \
                   "next, and second argument ('context') types must be identical.");
