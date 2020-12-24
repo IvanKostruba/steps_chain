@@ -3,7 +3,6 @@
 #include <memory>
 #include <string>
 #include <tuple>
-#include <utility>
 
 namespace steps_chain {
 
@@ -13,15 +12,15 @@ public:
     }
 
     template <typename T>
-    ChainWrapper(T&& x) : _self{std::make_unique<model<T>>(std::forward<T>(x))} {
+    ChainWrapper(T x) : _self{std::make_unique<model<T>>(std::move(x))} {
     }
 
     // Wrapper can hold context for ContextStepsChain, but then it will be copied (or moved)
     // in the ctor, and there are 2 more moves involved when creating polymorphic concept.
     // Use smart pointers to avoid copying heavy instances.
     template <typename T, typename C>
-    ChainWrapper(T&& x, C&& c) :
-        _self{std::make_unique<context_model<T, C>>(std::forward<T>(x), std::forward<C>(c))} {
+    ChainWrapper(T x, C c) :
+        _self{std::make_unique<context_model<T, C>>(std::move(x), std::move(c))} {
     }
 
     ChainWrapper(const ChainWrapper& other) : _self{other._self->copy()} {
@@ -75,7 +74,7 @@ private:
 
     template <typename T>
     struct model final : chain_concept {
-        model(T x) : _data{x} {
+        model(T x) : _data{std::move(x)} {
         }
 
         std::unique_ptr<chain_concept> copy() override { 
@@ -106,7 +105,7 @@ private:
 
     template <typename T, typename C>
     struct context_model final : chain_concept {
-        context_model(T x, C ctx) : _data{x}, _context{ctx} {
+        context_model(T x, C ctx) : _data{std::move(x)}, _context{std::move(ctx)} {
         }
 
         std::unique_ptr<chain_concept> copy() override { 

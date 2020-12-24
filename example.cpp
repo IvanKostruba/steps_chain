@@ -307,14 +307,19 @@ int main(int argc, char **argv) {
     }
     chains["context_chain"].run("");
     print_status(chains["context_chain"]);
-    assert((Context::copy_count == 0 && Context::move_count == 0 && Context::use_count == 2)
-        && "Context passed by ref into the function, and wrapper so no copy.");
+    assert((Context::copy_count == 1 && Context::move_count == 2 && Context::use_count == 2)
+        && "Context passed by ref into the function, and wrapper copies it once" \
+           "and then moves twice internally.");
     std::cout << "\nTest local storage wrapper for chain with external context.\n";
+    Context::copy_count = 0;
+    Context::move_count = 0;
+    Context::use_count = 0;
     auto ls_ctx_chain = ChainWrapperLS{ ContextStepsChain{goo_ctx, goo_ctx}, c };
     ls_ctx_chain.run("");
     print_status(ls_ctx_chain);
-    assert((Context::copy_count == 0 && Context::move_count == 0 && Context::use_count == 4)
-        && "Context passed by ref into the function, and wrapper so no copy.");
+    assert((Context::copy_count == 1 && Context::move_count == 1 && Context::use_count == 2)
+        && "Context passed by ref into the function, and wrapper copies it once" \
+           "and then moves once internally.");
     std::cout << "\nCheck initialization an execution performance.\n";
     constexpr size_t SIZE = 100000;
     {

@@ -3,7 +3,6 @@
 #include <string>
 #include <tuple>
 #include <type_traits>
-#include <utility>
 
 namespace steps_chain {
 
@@ -106,20 +105,20 @@ public:
     }
 
     template<typename Chain>
-    ChainWrapperLS(Chain&& chain)
+    ChainWrapperLS(Chain chain)
         : vtable_{&_detail::vtable_for<Chain>}
     {
         static_assert(sizeof(Chain) <= sizeof(buf_), "Wrapper buffer is too small!");
-        new(&buf_) Chain{std::forward<Chain>(chain)};
+        new(&buf_) Chain{std::move(chain)};
     }
 
     template<typename Chain, typename Context>
-    ChainWrapperLS(Chain&& x, Context&& c)
+    ChainWrapperLS(Chain x, Context c)
         : vtable_{&_detail::vtable_ctx_for<Chain, Context>}
     {
         static_assert(sizeof(std::pair<Chain, Context>) <= sizeof(buf_),
             "Wrapper buffer is too small!");
-        new(&buf_) std::pair<Chain, Context>{std::forward<Chain>(x), std::forward<Context>(c)};
+        new(&buf_) std::pair<Chain, Context>{std::move(x), std::move(c)};
     }
 
     ~ChainWrapperLS() {
