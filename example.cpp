@@ -60,6 +60,7 @@ struct Context {
     static size_t copy_count;
     static size_t move_count;
     static size_t use_count;
+    static size_t dtor_count;
 
     Context() { std::cout << "Context ctor\n"; }
     Context(const Context& other) { std::cout << "Context copy\n"; ++copy_count; }
@@ -71,12 +72,15 @@ struct Context {
         std::cout << "Context move op\n"; ++move_count; return *this;
     }
 
+    ~Context() { ++dtor_count; }
+
     int getValue() const { ++use_count; return 88; }
 };
 
 size_t Context::copy_count = 0;
 size_t Context::move_count = 0;
 size_t Context::use_count = 0;
+size_t Context::dtor_count = 0;
 
 // ---------- Test functions that just do output ----------
 
@@ -308,30 +312,38 @@ int main(int argc, char **argv) {
     Context::copy_count = 0;
     Context::move_count = 0;
     Context::use_count = 0;
-    {
-        Context local_context;
-        chains.insert( { "context_chain", ChainWrapper{ ContextStepsChain{goo_ctx, goo_ctx}, local_context } } );
-    }
+    Context::dtor_count = 0;
+    chains.insert( { "context_chain", ChainWrapper{ ContextStepsChain{goo_ctx, goo_ctx}, c } } );
     chains["context_chain"].run("");
     print_status(chains["context_chain"]);
-    assert((Context::copy_count == 1 && Context::move_count == 2 && Context::use_count == 2)
+    chains.erase("context_chain");
+    std::cout << Context::dtor_count << "\n";
+    assert((Context::copy_count == 1 && Context::move_count == 2
+        && Context::use_count == 2 && Context::dtor_count == 3)
         && "Context passed by ref into the function, and wrapper copies it once" \
-           "and then moves twice internally.");
+           "and then moves twice internally. All 3 must be destroyed");
     std::cout << "\nTest local storage wrapper for chain with external context.\n";
     Context::copy_count = 0;
     Context::move_count = 0;
     Context::use_count = 0;
-    auto ls_ctx_chain = ChainWrapperLS{ ContextStepsChain{goo_ctx, goo_ctx}, c };
-    ls_ctx_chain.run("");
-    print_status(ls_ctx_chain);
-    assert((Context::copy_count == 1 && Context::move_count == 1 && Context::use_count == 2)
+    Context::dtor_count = 0;
+    {
+        auto ls_ctx_chain = ChainWrapperLS{ ContextStepsChain{goo_ctx, goo_ctx}, c };
+        ls_ctx_chain.run("");
+        print_status(ls_ctx_chain);
+    }
+    assert((Context::copy_count == 1 && Context::move_count == 1
+        && Context::use_count == 2 && Context::dtor_count == 2)
         && "Context passed by ref into the function, and wrapper copies it once" \
-           "and then moves once internally.");
+           "and then moves once internally. Both must be destroyed");
     std::cout << "\nTest local storage wrapper for chain with shared ptr to external context.\n";
-    auto cptr = std::make_shared<Context>();
-    auto ls_sptr_chain = ChainWrapper{ ContextStepsChain{boo_sptr_ctx}, cptr };
-    ls_sptr_chain.run("");
-    print_status(ls_sptr_chain);
+    {
+        auto ls_sptr_chain = ChainWrapper{
+            ContextStepsChain{boo_sptr_ctx}, std::make_shared<Context>() };
+        ls_sptr_chain.run("");
+        print_status(ls_sptr_chain);
+    }
+    assert((Context::dtor_count == 3) && "Context held by shared ptr must be properly destroyed.");
     std::cout << "\nCheck initialization an execution performance.\n";
     constexpr size_t SIZE = 100000;
     {
