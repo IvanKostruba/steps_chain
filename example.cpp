@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <unordered_map>
 
@@ -87,6 +88,12 @@ EmptyParameter boo(const EmptyParameter &) {
 EmptyParameter boo_ctx(const EmptyParameter &, Context c) {
     std::cout << "  # Step output: boo( EmptyParameter, Context["
         << c.getValue() << "] ) -> EmptyParameter\n";
+    return EmptyParameter{};
+}
+
+EmptyParameter boo_sptr_ctx(const EmptyParameter &, const std::shared_ptr<Context>& c) {
+    std::cout << "  # Step output: boo( EmptyParameter, Context["
+        << c->getValue() << "] ) -> EmptyParameter\n";
     return EmptyParameter{};
 }
 
@@ -320,6 +327,11 @@ int main(int argc, char **argv) {
     assert((Context::copy_count == 1 && Context::move_count == 1 && Context::use_count == 2)
         && "Context passed by ref into the function, and wrapper copies it once" \
            "and then moves once internally.");
+    std::cout << "\nTest local storage wrapper for chain with shared ptr to external context.\n";
+    auto cptr = std::make_shared<Context>();
+    auto ls_sptr_chain = ChainWrapper{ ContextStepsChain{boo_sptr_ctx}, cptr };
+    ls_sptr_chain.run("");
+    print_status(ls_sptr_chain);
     std::cout << "\nCheck initialization an execution performance.\n";
     constexpr size_t SIZE = 100000;
     {

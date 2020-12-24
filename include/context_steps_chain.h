@@ -29,6 +29,10 @@ public:
             std::decay_t<typename signature<std::tuple_element_t<0, steps_type>>::arg_type>>,
         "The argument type of the first step must be default-constructible"
     );
+    static_assert(
+        !std::is_reference_v<context_type> ||
+        std::is_const_v<std::remove_reference_t<context_type>>,
+        "Context must be passed by value or by const reference.");
     static_assert(are_chainable<Steps...>(),
                   "Return type of the previous function must be the same as argument type of the " \
                   "next, and second argument ('context') types must be identical.");

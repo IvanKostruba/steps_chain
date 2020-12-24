@@ -79,7 +79,7 @@ namespace _detail {
         },
 
         [](void* ptr) {
-            static_cast<std::pair<Chain, Context>*>(ptr)->first.~Chain();
+            static_cast<std::pair<Chain, Context>*>(ptr)->~pair();
         },
         [](void* storage, const void* ptr) {
             new (storage) std::pair<Chain, Context>{
@@ -128,19 +128,14 @@ public:
     }
 
     ChainWrapperLS(const ChainWrapperLS& other) {
-        if (vtable_) {
-            vtable_->destroy_(&buf_);
-        }
         other.vtable_->clone(&buf_, &other.buf_);
         vtable_ = other.vtable_;
     }
 
     ChainWrapperLS(ChainWrapperLS&& other) noexcept {
-        if (vtable_) {
-            vtable_->destroy_(&buf_);
-        }
         other.vtable_->move_clone(&buf_, &other.buf_);
         vtable_ = other.vtable_;
+        other.vtable_ = nullptr;
     }
 
     ChainWrapperLS& operator=(const ChainWrapperLS& other) {
@@ -157,6 +152,7 @@ public:
         }
         other.vtable_->move_clone(&buf_, &other.buf_);
         vtable_ = other.vtable_;
+        other.vtable_ = nullptr;
         return *this;
     }
 
