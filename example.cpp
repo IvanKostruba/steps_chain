@@ -58,16 +58,24 @@ static_assert(helpers::is_serializable<StringParameter>::value,
 struct Context {
     static size_t copy_count;
     static size_t move_count;
+    static size_t use_count;
 
-    Context() {}
+    Context() { std::cout << "Context ctor\n"; }
     Context(const Context& other) { std::cout << "Context copy\n"; ++copy_count; }
     Context(Context&& other) noexcept { std::cout << "Context move\n"; ++move_count; }
+    Context& operator=(const Context& other) {
+        std::cout << "Context copy op\n"; ++copy_count; return *this;
+    }
+    Context& operator=(Context&& other) noexcept {
+        std::cout << "Context move op\n"; ++move_count; return *this;
+    }
 
-    int getValue() const { return 88; }
+    int getValue() const { ++use_count; return 88; }
 };
 
 size_t Context::copy_count = 0;
 size_t Context::move_count = 0;
+size_t Context::use_count = 0;
 
 // ---------- Test functions that just do output ----------
 
@@ -87,8 +95,9 @@ EmptyParameter goo(EmptyParameter) {
     return EmptyParameter{};
 }
 
-EmptyParameter goo_ctx(EmptyParameter, const Context&) {
-    std::cout << "  # Step output: goo( EmptyParameter, const Context& ) -> EmptyParameter\n";
+EmptyParameter goo_ctx(EmptyParameter, const Context& c) {
+    std::cout << "  # Step output: goo( EmptyParameter, const Context&["
+        << c.getValue() <<"] ) -> EmptyParameter\n";
     return EmptyParameter{};
 }
 
@@ -167,7 +176,7 @@ static_assert(helpers::are_chainable<decltype(boo)>(), "Single-element chain sho
 static_assert(!helpers::are_chainable<decltype(hoo), decltype(boo)>(),
     "Mismatched signatures must be detected!");
 static_assert(!helpers::are_chainable<decltype(boo_ctx), decltype(goo_ctx)>(),
-    "Mismatched context types must be detected!");
+    "Mismatched context types (val vs. ref) must be detected!");
 
 // ---------- Output helper ----------
 
@@ -261,7 +270,7 @@ int main(int argc, char **argv) {
     std::cout << "\nChecking the copy we made before from [chain_1]:\n";
     print_status(wrapperCopy);
 
-    std::cout << "\nTest wrapper with external context.\n";
+    std::cout << "\nTest chain with external context.\n";
     auto ctx_lambda_chain = ContextStepsChain {
         [](EmptyParameter& p, const Context& ctx) -> IntParameter {
             std::cout << "Lambda with context [" << ctx.getValue() << "] ( EmptyParameter )\n";
@@ -280,7 +289,6 @@ int main(int argc, char **argv) {
     print_status(ctx_lambda_chain);
     assert((Context::copy_count == 0 && Context::move_count == 0)
         && "Context passed by ref, no copying/moving should be involved.");
-
     auto ctx_value_chain = ContextStepsChain {
         boo_ctx
     };
@@ -289,15 +297,25 @@ int main(int argc, char **argv) {
     // When context is passed by value it should be copied once and then moved internally.
     assert((Context::copy_count == 1 && Context::move_count == 3)
         && "Context passed by value, should be copied only once.");
-    
+    std::cout << "\nTest wrapper for chain with external context.\n";
     Context::copy_count = 0;
     Context::move_count = 0;
-    chains.insert( { "context_chain", ChainWrapper{ ContextStepsChain{goo_ctx, goo_ctx}, c } } );
+    Context::use_count = 0;
+    {
+        Context local_context;
+        chains.insert( { "context_chain", ChainWrapper{ ContextStepsChain{goo_ctx, goo_ctx}, local_context } } );
+    }
     chains["context_chain"].run("");
     print_status(chains["context_chain"]);
-    assert((Context::copy_count == 1 && Context::move_count == 2)
-        && "Context passed by ref into the function, and wrapper copies it only once" \
-        " (but there are internal moves in the wrapper).");
+    assert((Context::copy_count == 0 && Context::move_count == 0 && Context::use_count == 2)
+        && "Context passed by ref into the function, and wrapper so no copy.");
+    std::cout << "\nTest local storage wrapper for chain with external context.\n";
+    auto ls_ctx_chain = ChainWrapperLS{ ContextStepsChain{goo_ctx, goo_ctx}, c };
+    ls_ctx_chain.run("");
+    print_status(ls_ctx_chain);
+    assert((Context::copy_count == 0 && Context::move_count == 0 && Context::use_count == 4)
+        && "Context passed by ref into the function, and wrapper so no copy.");
+    std::cout << "\nCheck initialization an execution performance.\n";
     constexpr size_t SIZE = 100000;
     {
         auto t1 = std::chrono::high_resolution_clock::now();
