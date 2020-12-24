@@ -317,7 +317,6 @@ int main(int argc, char **argv) {
     chains["context_chain"].run("");
     print_status(chains["context_chain"]);
     chains.erase("context_chain");
-    std::cout << Context::dtor_count << "\n";
     assert((Context::copy_count == 1 && Context::move_count == 2
         && Context::use_count == 2 && Context::dtor_count == 3)
         && "Context passed by ref into the function, and wrapper copies it once" \
@@ -345,7 +344,7 @@ int main(int argc, char **argv) {
     }
     assert((Context::dtor_count == 3) && "Context held by shared ptr must be properly destroyed.");
     std::cout << "\nCheck initialization an execution performance.\n";
-    constexpr size_t SIZE = 100000;
+    constexpr size_t SIZE = 10000;
     {
         auto t1 = std::chrono::high_resolution_clock::now();
         std::array<ChainWrapper, SIZE> arr;
