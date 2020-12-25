@@ -305,8 +305,9 @@ int main(int argc, char **argv) {
     };
     ctx_value_chain.run("", c);
     print_status(ctx_value_chain);
-    // When context is passed by value it should be copied once and then moved internally.
-    assert((Context::copy_count == 1 && Context::move_count == 3)
+    // When context is passed by value it should be copied once to the wrapper and then moved
+    // into the chain which will copy it for each function invoked by execute_from.
+    assert((Context::copy_count == 2 && Context::move_count == 2)
         && "Context passed by value, should be copied only once.");
     std::cout << "\nTest wrapper for chain with external context.\n";
     Context::copy_count = 0;

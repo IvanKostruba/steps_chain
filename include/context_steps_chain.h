@@ -110,7 +110,7 @@ private:
         constexpr auto table =
             invoke_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
         for (uint8_t i = begin_idx; i < sizeof...(Steps); ++i) {
-            _current = table[i](_steps, _current_args, std::move(ctx));
+            _current = table[i](_steps, _current_args, ctx);
         }
     }
 
