@@ -194,7 +194,7 @@ static_assert(!helpers::are_chainable<decltype(boo_ctx), decltype(goo_ctx)>(),
 template <typename S>
 void print_status(S& sequence) {
     auto [step, state] = sequence.get_current_state();
-    std::cout << "  - Current step: " << step << ", finished: "
+    std::cout << "  - Current step: " << static_cast<int>(step) << ", finished: "
         << (sequence.is_finished() ? "yes" : "no") << ", step argument = " << state << "\n";
 }
 

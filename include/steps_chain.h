@@ -36,7 +36,6 @@ public:
     // Run all remaining steps, beginnig with given index.
     void run(std::string parameters, uint8_t begin_idx = 0) {
         if (begin_idx >= sizeof...(Steps)) {
-            // TODO: introduce error handling, maybe exception?
             return;
         }
         initialize(std::move(parameters), begin_idx);
@@ -73,13 +72,13 @@ public:
         return std::make_tuple(_current, serialize_current_args());
     }
 
-    bool is_finished() const { return _current == sizeof...(Steps); }
+    bool is_finished() const { return _current >= sizeof...(Steps); }
 
 private:
-    // ----- Iterate over callables and invoke them -----
+    // ----- Instantiate callable invokers -----
 
     template <uint8_t idx>
-    static auto make_invoker() {
+    static constexpr auto make_invoker() {
         return [](steps_type& steps, current_arguments_type& data) -> uint8_t {
             using argument_type = std::decay_t<
                 typename signature<std::tuple_element_t<idx, steps_type>>::arg_type>;
@@ -91,22 +90,22 @@ private:
     // We have to iterate over tuple because there can be functions with same signature but with
     // different logic, or even same function can be repeated. So std::get by type may not help us.
     template <size_t... Idx>
-    static auto invoke_dispatch_table(std::index_sequence<Idx...>) {
-        static std::array<uint8_t(*)(steps_type&, current_arguments_type&), sizeof...(Idx)>
+    static constexpr auto invoke_dispatch_table(std::index_sequence<Idx...>) {
+        std::array<uint8_t(*)(steps_type&, current_arguments_type&), sizeof...(Idx)>
             invoke_dispatch = {make_invoker<Idx>()...};
         return invoke_dispatch;
     }
 
     inline void execute_from(uint8_t begin_idx) {
-        static const auto& table =
+        constexpr auto table =
             invoke_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
         for (uint8_t i = begin_idx; i < sizeof...(Steps); ++i) {
             _current = table[i](_steps, _current_args);
         }
     }
 
-    inline void execute_current() {
-        static const auto& table =
+    void execute_current() {
+        constexpr auto table =
             invoke_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
         _current = table[_current](_steps, _current_args);
     }
@@ -114,7 +113,7 @@ private:
     // ----- Instantiate deserialization methods -----    
 
     inline void deserialize_arguments(uint8_t step, std::string parameters) {
-        static const auto& table =
+        constexpr auto table =
             marshalling::deserialize_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
         table[step](_current_args, std::move(parameters));
     }
@@ -123,7 +122,7 @@ private:
 
     inline std::string serialize_current_args() const {
         if (_current < sizeof...(Steps)) {
-            static const auto& table =
+            constexpr auto table =
                 marshalling::serialize_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
             return table[_current](_current_args);
         }

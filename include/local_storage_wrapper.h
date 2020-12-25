@@ -93,9 +93,9 @@ namespace _detail {
 
 };  // namespace _detail
 
-// This wrapper will store its chain in local buffer, it makes it way easier (2x+ faster) to 
-// copy/move around as no heap allocations will occur. It is also slightly faster to dispatch
-// calls (~13% by measurements on my machine). The downside is that really big (ans even no so big,
+// This wrapper will store its chain in local buffer, it makes it way  faster to copy/move around
+// as no heap allocations will occur. It is also slightly faster to dispatch calls
+// (~13% by measurements on my machine). The downside is that really big (ans even no so big,
 // depending on OS) containers can cause stack overflow.
 
 class ChainWrapperLS {
