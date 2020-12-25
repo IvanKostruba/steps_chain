@@ -97,7 +97,7 @@ private:
         return invoke_dispatch;
     }
 
-    void execute_from(size_t begin_idx) {
+    void execute_from(uint8_t begin_idx) {
         static const auto& table =
             invoke_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
         for (uint8_t i = begin_idx; i < sizeof...(Steps); ++i) {
