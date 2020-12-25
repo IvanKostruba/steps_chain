@@ -34,7 +34,7 @@ public:
     StepsChain(Steps... steps) : _steps{steps...}, _current{0} {}
 
     // Run all remaining steps, beginnig with given index.
-    void run(std::string parameters, size_t begin_idx = 0) {
+    void run(std::string parameters, uint8_t begin_idx = 0) {
         if (begin_idx >= sizeof...(Steps)) {
             // TODO: introduce error handling, maybe exception?
             return;
@@ -44,7 +44,7 @@ public:
     }
 
     // Just initializer, intended to be used in pair with advance()
-    void initialize(std::string parameters, size_t current_idx = 0) {
+    void initialize(std::string parameters, uint8_t current_idx = 0) {
         if (current_idx >= sizeof...(Steps)) {
             return;
         }
@@ -69,7 +69,7 @@ public:
 
     // Get step index and serialized arguments for current step so that they can be stored.
     // If final step was executed, final result will be returned.
-    std::tuple<size_t, std::string> get_current_state() const {
+    std::tuple<uint8_t, std::string> get_current_state() const {
         return std::make_tuple(_current, serialize_current_args());
     }
 
@@ -78,9 +78,9 @@ public:
 private:
     // ----- Iterate over callables and invoke them -----
 
-    template <size_t idx>
+    template <uint8_t idx>
     static auto make_invoker() {
-        return [](steps_type& steps, current_arguments_type& data) -> size_t {
+        return [](steps_type& steps, current_arguments_type& data) -> uint8_t {
             using argument_type = std::decay_t<
                 typename signature<std::tuple_element_t<idx, steps_type>>::arg_type>;
             data = std::get<idx>(steps)(std::get<argument_type>(data));
@@ -90,9 +90,9 @@ private:
 
     // We have to iterate over tuple because there can be functions with same signature but with
     // different logic, or even same function can be repeated. So std::get by type may not help us.
-    template <size_t... Idx>
+    template <uint8_t... Idx>
     static auto invoke_dispatch_table(std::index_sequence<Idx...>) {
-        static std::array<size_t(*)(steps_type&, current_arguments_type&), sizeof...(Idx)>
+        static std::array<uint8_t(*)(steps_type&, current_arguments_type&), sizeof...(Idx)>
             invoke_dispatch = {make_invoker<Idx>()...};
         return invoke_dispatch;
     }
@@ -100,7 +100,7 @@ private:
     void execute_from(size_t begin_idx) {
         static const auto& table =
             invoke_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
-        for (size_t i = begin_idx; i < sizeof...(Steps); ++i) {
+        for (uint8_t i = begin_idx; i < sizeof...(Steps); ++i) {
             _current = table[i](_steps, _current_args);
         }
     }
@@ -113,7 +113,7 @@ private:
 
     // ----- Instantiate deserialization methods -----    
 
-    void deserialize_arguments(size_t step, std::string parameters) {
+    void deserialize_arguments(uint8_t step, std::string parameters) {
         static const auto& table =
             marshalling::deserialize_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
         table[step](_current_args, std::move(parameters));
@@ -157,7 +157,7 @@ private:
 
     steps_type _steps;
     current_arguments_type _current_args;
-    size_t _current;
+    uint8_t _current;
 };
 
 }; // namespace steps_chain

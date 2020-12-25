@@ -343,7 +343,7 @@ int main(int argc, char **argv) {
         print_status(ls_sptr_chain);
     }
     assert((Context::dtor_count == 3) && "Context held by shared ptr must be properly destroyed.");
-    std::cout << "\nCheck initialization an execution performance.\n";
+    std::cout << "\nCheck initialization and execution performance.\n";
     constexpr size_t SIZE = 10000;
     {
         auto t1 = std::chrono::high_resolution_clock::now();

@@ -10,7 +10,7 @@ namespace helpers {
 
 template<typename Steps, typename Arg>
 struct MarshallingInvokeTables {
-    template <size_t idx>
+    template <uint8_t idx>
     static auto make_deserializer() {
         return [](Arg& data, std::string parameters) -> void {
             using argument_type = std::decay_t<
@@ -19,14 +19,14 @@ struct MarshallingInvokeTables {
         };
     }
 
-    template <size_t... Idx>
+    template <uint8_t... Idx>
     static auto deserialize_dispatch_table(std::index_sequence<Idx...>) {
         static std::array<void(*)(Arg&, std::string), sizeof...(Idx)>
             deserialize_dispatch = {make_deserializer<Idx>()...};
         return deserialize_dispatch;
     }
 
-    template <size_t idx>
+    template <uint8_t idx>
     static auto make_serializer() {
         return [](const Arg& data) -> std::string {
             using arg_type = std::decay_t<
@@ -35,7 +35,7 @@ struct MarshallingInvokeTables {
         };
     }
 
-    template <size_t... Idx>
+    template <uint8_t... Idx>
     static auto serialize_dispatch_table(std::index_sequence<Idx...>) {
         static std::array<std::string(*)(const Arg&), sizeof...(Idx)>
             serialize_dispatch = {make_serializer<Idx>()...};

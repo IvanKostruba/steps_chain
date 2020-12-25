@@ -9,11 +9,11 @@ namespace steps_chain {
 namespace _detail {
 
     struct vtable {
-        void (*run)(void* ptr, std::string parameters, size_t begin);
-        void (*initialize)(void* ptr, std::string parameters, size_t begin);
+        void (*run)(void* ptr, std::string parameters, uint8_t begin);
+        void (*initialize)(void* ptr, std::string parameters, uint8_t begin);
         void (*advance)(void* ptr);
         void (*resume)(void* ptr);
-        std::tuple<size_t, std::string> (*get_current_state)(const void* ptr);
+        std::tuple<uint8_t, std::string> (*get_current_state)(const void* ptr);
         bool (*is_finished)(const void* ptr);
 
         void (*destroy_)(void* ptr);
@@ -23,10 +23,10 @@ namespace _detail {
 
     template<typename Chain>
     constexpr vtable vtable_for {
-        [](void* ptr, std::string parameters, size_t begin) {
+        [](void* ptr, std::string parameters, uint8_t begin) {
             static_cast<Chain*>(ptr)->run(std::move(parameters), begin);
         },
-        [](void* ptr, std::string parameters, size_t begin) {
+        [](void* ptr, std::string parameters, uint8_t begin) {
             static_cast<Chain*>(ptr)->initialize(std::move(parameters), begin);
         },
         [](void* ptr) {
@@ -35,7 +35,7 @@ namespace _detail {
         [](void* ptr) {
             static_cast<Chain*>(ptr)->resume();
         },
-        [](const void* ptr) -> std::tuple<size_t, std::string> {
+        [](const void* ptr) -> std::tuple<uint8_t, std::string> {
             return static_cast<const Chain*>(ptr)->get_current_state();
         },
         [](const void* ptr) -> bool {
@@ -55,11 +55,11 @@ namespace _detail {
 
     template<typename Chain, typename Context>
     constexpr vtable vtable_ctx_for {
-        [](void* ptr, std::string parameters, size_t begin) {
+        [](void* ptr, std::string parameters, uint8_t begin) {
             auto* p = static_cast<std::pair<Chain, Context>*>(ptr);
             p->first.run(std::move(parameters), p->second, begin);
         },
-        [](void* ptr, std::string parameters, size_t begin) {;
+        [](void* ptr, std::string parameters, uint8_t begin) {;
             static_cast<std::pair<Chain, Context>*>(ptr)->first
                 .initialize(std::move(parameters), begin);
         },
@@ -71,7 +71,7 @@ namespace _detail {
             auto* p = static_cast<std::pair<Chain, Context>*>(ptr);
             p->first.resume(p->second);
         },
-        [](const void* ptr) -> std::tuple<size_t, std::string> {
+        [](const void* ptr) -> std::tuple<uint8_t, std::string> {
             return static_cast<const std::pair<Chain, Context>*>(ptr)->first.get_current_state();
         },
         [](const void* ptr) -> bool {
@@ -156,11 +156,11 @@ public:
         return *this;
     }
 
-    void run(std::string parameters, size_t begin = 0) {
+    void run(std::string parameters, uint8_t begin = 0) {
         vtable_->run(&buf_, std::move(parameters), begin);
     }
 
-    void initialize(std::string parameters, size_t begin = 0) {
+    void initialize(std::string parameters, uint8_t begin = 0) {
         vtable_->initialize(&buf_, std::move(parameters), begin);
     }
 
@@ -172,7 +172,7 @@ public:
         vtable_->resume(&buf_);
     }
 
-    std::tuple<size_t, std::string> get_current_state() const {
+    std::tuple<uint8_t, std::string> get_current_state() const {
         return vtable_->get_current_state(&buf_);
     }
 
