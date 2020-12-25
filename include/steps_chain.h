@@ -97,7 +97,7 @@ private:
         return invoke_dispatch;
     }
 
-    void execute_from(uint8_t begin_idx) {
+    inline void execute_from(uint8_t begin_idx) {
         static const auto& table =
             invoke_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
         for (uint8_t i = begin_idx; i < sizeof...(Steps); ++i) {
@@ -105,7 +105,7 @@ private:
         }
     }
 
-    void execute_current() {
+    inline void execute_current() {
         static const auto& table =
             invoke_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
         _current = table[_current](_steps, _current_args);
@@ -113,7 +113,7 @@ private:
 
     // ----- Instantiate deserialization methods -----    
 
-    void deserialize_arguments(uint8_t step, std::string parameters) {
+    inline void deserialize_arguments(uint8_t step, std::string parameters) {
         static const auto& table =
             marshalling::deserialize_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
         table[step](_current_args, std::move(parameters));
@@ -121,7 +121,7 @@ private:
 
     // ----- Instantiate serialization methods -----
 
-    std::string serialize_current_args() const {
+    inline std::string serialize_current_args() const {
         if (_current < sizeof...(Steps)) {
             static const auto& table =
                 marshalling::serialize_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
