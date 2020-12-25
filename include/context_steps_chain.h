@@ -96,7 +96,7 @@ private:
 
     // We have to iterate over tuple because there can be functions with same signature but with
     // different logic, or even same function can be repeated. So std::get by type may not help us.
-    template <uint8_t... Idx>
+    template <size_t... Idx>
     static auto invoke_dispatch_table(std::index_sequence<Idx...>) {
         static std::array<
             uint8_t(*)(
