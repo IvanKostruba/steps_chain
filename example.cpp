@@ -54,7 +54,7 @@ struct StringParameter {
 static_assert(helpers::is_serializable<StringParameter>::value,
               "StringParameter must be valid!");
 
-// ---------- Context is something that can be known only when chain is running ----------
+// ---------- Context may be a DB connection or a socket, for example ----------
 
 struct Context {
     static size_t copy_count;
@@ -89,12 +89,14 @@ EmptyParameter boo(const EmptyParameter &) {
     return EmptyParameter{};
 }
 
+// Version with context.
 EmptyParameter boo_ctx(const EmptyParameter &, Context c) {
     std::cout << "  # Step output: boo( EmptyParameter, Context["
         << c.getValue() << "] ) -> EmptyParameter\n";
     return EmptyParameter{};
 }
 
+// Version with context.
 EmptyParameter boo_sptr_ctx(const EmptyParameter &, const std::shared_ptr<Context>& c) {
     std::cout << "  # Step output: boo( EmptyParameter, Context["
         << c->getValue() << "] ) -> EmptyParameter\n";
@@ -106,6 +108,7 @@ EmptyParameter goo(EmptyParameter) {
     return EmptyParameter{};
 }
 
+// Version with context.
 EmptyParameter goo_ctx(EmptyParameter, const Context& c) {
     std::cout << "  # Step output: goo( EmptyParameter, const Context&["
         << c.getValue() <<"] ) -> EmptyParameter\n";
@@ -135,7 +138,7 @@ IntParameter fibo_final(const TwoIntParameter& in) {
     return IntParameter{in._a + in._b};
 }
 
-// ---------- Test class ----------
+// ---------- Test class, must be wrapped in lambda to be used in chain ----------
 
 class TestClass {
 public:
@@ -198,9 +201,9 @@ void print_status(S& sequence) {
         << (sequence.is_finished() ? "yes" : "no") << ", step argument = " << state << "\n";
 }
 
-// ---------- Main ----------
+// ---------- Tests ----------
 
-int main(int argc, char **argv) {
+bool TestChainExceptionAndResume() {
     auto steps_with_fail = StepsChain{
         boo,
         goo_throw,
@@ -221,7 +224,10 @@ int main(int argc, char **argv) {
         std::cout << "State after resume:\n";
         print_status(steps_with_fail);
     }
+    return steps_with_fail.is_finished();
+}
 
+bool ExampleRunFromCustomPoint() {
     auto steps = StepsChain{
         boo,
         goo,
@@ -235,15 +241,20 @@ int main(int argc, char **argv) {
     std::cout << "\nRunning steps from custom point:\n";
     steps.run("", 1);
     print_status(steps);
+    return steps.is_finished();
+}
 
+bool TestSingleStepChain() {
     auto single_step = StepsChain {
         hoo
     };
     std::cout << "\nRunning single-step sequence:\n";
     single_step.run("");
     print_status(single_step);
+    return single_step.is_finished();
+}
 
-    // Storing step chains in a container with the help of ChainWrapper
+bool TestWrapperInContainer() {
     std::unordered_map<std::string, ChainWrapper> chains;
     TestClass instance{1};
     auto class_wrapper = [&instance](IntParameter& param){ return instance.method(param); };
@@ -277,10 +288,14 @@ int main(int argc, char **argv) {
     print_status(chains["chain_2"]);
     chains["chain_2"].resume();
     print_status(chains["chain_2"]);
-
     std::cout << "\nChecking the copy we made before from [chain_1]:\n";
     print_status(wrapperCopy);
+    return chains["chain_1"].is_finished()
+        && chains["chain_2"].is_finished()
+        && !wrapperCopy.is_finished();
+}
 
+bool TestLambdaWithContextRef() {
     std::cout << "\nTest chain with external context.\n";
     auto ctx_lambda_chain = ContextStepsChain {
         [](EmptyParameter& p, const Context& ctx) -> IntParameter {
@@ -300,33 +315,50 @@ int main(int argc, char **argv) {
     print_status(ctx_lambda_chain);
     assert((Context::copy_count == 0 && Context::move_count == 0)
         && "Context passed by ref, no copying/moving should be involved.");
-    auto ctx_value_chain = ContextStepsChain {
+    return ctx_lambda_chain.is_finished() && Context::copy_count == 0 && Context::move_count == 0;
+}
+
+bool TestChainWithContextByVal() {
+     auto ctx_value_chain = ContextStepsChain {
         boo_ctx
     };
+    Context c;
     ctx_value_chain.run("", c);
     print_status(ctx_value_chain);
     // When context is passed by value it should be copied once to the wrapper and then moved
     // into the chain which will copy it for each function invoked by execute_from.
     assert((Context::copy_count == 2 && Context::move_count == 2)
         && "Context passed by value, should be copied only once.");
-    std::cout << "\nTest wrapper for chain with external context.\n";
+    return ctx_value_chain.is_finished() && Context::copy_count == 2 && Context::move_count == 2;
+}
+
+bool TestWrapperWithContext() {
+     std::cout << "\nTest wrapper for chain with external context.\n";
     Context::copy_count = 0;
     Context::move_count = 0;
     Context::use_count = 0;
     Context::dtor_count = 0;
-    chains.insert( { "context_chain", ChainWrapper{ ContextStepsChain{goo_ctx, goo_ctx}, c } } );
-    chains["context_chain"].run("");
-    print_status(chains["context_chain"]);
-    chains.erase("context_chain");
+    Context c;
+    {
+        auto wrapper = ChainWrapper{ ContextStepsChain{goo_ctx, goo_ctx}, c };
+        wrapper.run("");
+        print_status(wrapper);
+    }
     assert((Context::copy_count == 1 && Context::move_count == 2
         && Context::use_count == 2 && Context::dtor_count == 3)
         && "Context passed by ref into the function, and wrapper copies it once" \
            "and then moves twice internally. All 3 must be destroyed");
+    return Context::copy_count == 1 && Context::move_count == 2
+        && Context::use_count == 2 && Context::dtor_count == 3;
+}
+
+bool TestLocalStorageWrapperWithContext() {
     std::cout << "\nTest local storage wrapper for chain with external context.\n";
     Context::copy_count = 0;
     Context::move_count = 0;
     Context::use_count = 0;
     Context::dtor_count = 0;
+    Context c;
     {
         auto ls_ctx_chain = ChainWrapperLS{ ContextStepsChain{goo_ctx, goo_ctx}, c };
         ls_ctx_chain.run("");
@@ -344,40 +376,63 @@ int main(int argc, char **argv) {
         print_status(ls_sptr_chain);
     }
     assert((Context::dtor_count == 3) && "Context held by shared ptr must be properly destroyed.");
+    return Context::copy_count == 1 && Context::move_count == 1
+        && Context::use_count == 3 && Context::dtor_count == 3;
+}
+
+constexpr size_t SIZE = 10000;
+
+void PerformancePolymorphicWrapper() {
     std::cout << "\nCheck initialization and execution performance.\n";
-    constexpr size_t SIZE = 10000;
-    {
-        auto t1 = std::chrono::high_resolution_clock::now();
-        std::array<ChainWrapper, SIZE> arr;
-        for (size_t i = 0; i < SIZE; ++i) {
-            arr[i] = ChainWrapper{StepsChain{fibo, fibo, fibo, fibo_final}};
-        }
-        auto t2 = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-        std::cout << "init time: " << duration << "\n";
-        t1 = std::chrono::high_resolution_clock::now();
-        for (size_t i = 0; i < SIZE; ++i) {
-            arr[i].resume();
-        }
-        t2 = std::chrono::high_resolution_clock::now();
-        duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-        std::cout << "runtime: " << duration << "\n";
+    auto t1 = std::chrono::high_resolution_clock::now();
+    std::array<ChainWrapper, SIZE> arr;
+    for (size_t i = 0; i < SIZE; ++i) {
+        arr[i] = ChainWrapper{StepsChain{fibo, fibo, fibo, fibo_final}};
     }
-    {
-        auto t1 = std::chrono::high_resolution_clock::now();
-        std::array<ChainWrapperLS, SIZE> farr;
-        for (size_t i = 0; i < SIZE; ++i) {
-            farr[i] = ChainWrapperLS{StepsChain{fibo, fibo, fibo, fibo_final}};
-        }
-        auto t2 = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-        std::cout << "init time (fancy local): " << duration << "\n";
-        t1 = std::chrono::high_resolution_clock::now();
-        for (size_t i = 0; i < SIZE; ++i) {
-            farr[i].resume();
-        }
-        t2 = std::chrono::high_resolution_clock::now();
-        duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-        std::cout << "runtime (fancy local): " << duration << "\n";
+    auto t2 = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+    std::cout << "init time: " << duration << "\n";
+    t1 = std::chrono::high_resolution_clock::now();
+    for (size_t i = 0; i < SIZE; ++i) {
+        arr[i].resume();
     }
+    t2 = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+    std::cout << "runtime: " << duration << "\n";
+}
+
+void PerformanceLocalStorageWrapper() {
+    auto t1 = std::chrono::high_resolution_clock::now();
+    std::array<ChainWrapperLS, SIZE> farr;
+    for (size_t i = 0; i < SIZE; ++i) {
+        farr[i] = ChainWrapperLS{StepsChain{fibo, fibo, fibo, fibo_final}};
+    }
+    auto t2 = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+    std::cout << "init time (fancy local): " << duration << "\n";
+    t1 = std::chrono::high_resolution_clock::now();
+    for (size_t i = 0; i < SIZE; ++i) {
+        farr[i].resume();
+    }
+    t2 = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+    std::cout << "runtime (fancy local): " << duration << "\n";
+}
+
+// ---------- Main ----------
+
+int main(int argc, char **argv) {
+    std::cout << (TestChainExceptionAndResume()  ? "# [PASS]\n" : "# [FAIL]\n");
+    std::cout << (ExampleRunFromCustomPoint()  ? "# [PASS]\n" : "# [FAIL]\n");
+    std::cout << (TestSingleStepChain()  ? "# [PASS]\n" : "# [FAIL]\n");
+    std::cout << (TestWrapperInContainer()  ? "# [PASS]\n" : "# [FAIL]\n");
+    std::cout << (TestLambdaWithContextRef()  ? "# [PASS]\n" : "# [FAIL]\n");
+    std::cout << (TestChainWithContextByVal() ? "# [PASS]\n" : "# [FAIL]\n");
+    std::cout << (TestWrapperWithContext() ? "# [PASS]\n" : "# [FAIL]\n");
+    std::cout << (TestLocalStorageWrapperWithContext() ? "# [PASS]\n" : "# [FAIL]\n");
+
+    // Performance numbers here are not really comparable, they must be run independently
+    // multiple times, and then statistics can be compared. They are here just for an overview
+    PerformancePolymorphicWrapper();
+    PerformanceLocalStorageWrapper();
 }
