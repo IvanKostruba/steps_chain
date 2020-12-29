@@ -127,6 +127,9 @@ public:
         }
     }
 
+    // Copy/move operations will fail if right operand will be default-constructed wrapper.
+    // For now I will not add handlig for that, as that would be a pessimization. Such assignments
+    // are unlikely and will lead to a crash, so handling will be added if necessary.
     ChainWrapperLS(const ChainWrapperLS& other) {
         other.vtable_->clone(&buf_, &other.buf_);
         vtable_ = other.vtable_;
