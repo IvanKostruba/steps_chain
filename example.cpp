@@ -319,7 +319,7 @@ bool TestLambdaWithContextRef() {
 }
 
 bool TestChainWithContextByVal() {
-     auto ctx_value_chain = ContextStepsChain {
+    auto ctx_value_chain = ContextStepsChain {
         boo_ctx
     };
     Context c;
@@ -333,7 +333,7 @@ bool TestChainWithContextByVal() {
 }
 
 bool TestWrapperWithContext() {
-     std::cout << "\nTest wrapper for chain with external context.\n";
+    std::cout << "\nTest wrapper for chain with external context.\n";
     Context::copy_count = 0;
     Context::move_count = 0;
     Context::use_count = 0;
