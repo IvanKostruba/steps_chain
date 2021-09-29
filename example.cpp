@@ -391,8 +391,8 @@ bool TestChainBreakWithOptional() {
         breaker,
         hoo};
     std::cout << "\nRunning broken sequence:\n";
-    steps_with_break.run("");
-    if (steps_with_break.is_finished()) {
+    bool expect_false = steps_with_break.run("");
+    if (expect_false || steps_with_break.is_finished()) {
         return false;
     }
 

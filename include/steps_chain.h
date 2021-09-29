@@ -15,6 +15,9 @@ using namespace helpers;
 // Each step must be a callable (function, static method, lambda or functor) that takes
 // a single argument and returns a single value.
 //
+// Return value can be std::optional in that case returning std::nullopt will break
+// the chain execution and current argument will stay the same.
+//
 // Types of arguments and return values must be constructible from std::string and
 // provide a serialize() method that returns a std::string.
 //
