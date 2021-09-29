@@ -30,40 +30,42 @@ class StepsChain
 {
 public:
     static_assert(are_chainable<Steps...>(),
-                  "Return type of the previous function must be the same as argument type of the next.");
+                  "Return type of the previous function must be the same as argument type of the next." \
+                  "If you use optional return type, next function argument should not be optional");
     StepsChain(Steps... steps) : _steps{steps...}, _current{0} {}
 
     // Run all remaining steps, beginnig with given index.
-    void run(std::string parameters, uint8_t begin_idx = 0) {
+    bool run(std::string parameters, uint8_t begin_idx = 0) {
         if (begin_idx >= sizeof...(Steps)) {
-            return;
+            return false;
         }
         initialize(std::move(parameters), begin_idx);
-        execute_from(begin_idx);
+        return execute_from(begin_idx);
     }
 
     // Just initializer, intended to be used in pair with advance()
-    void initialize(std::string parameters, uint8_t current_idx = 0) {
+    bool initialize(std::string parameters, uint8_t current_idx = 0) {
         if (current_idx >= sizeof...(Steps)) {
-            return;
+            return false;
         }
         deserialize_arguments(current_idx, std::move(parameters));
         _current = current_idx;
+        return true;
     }
 
-    void advance() {
+    bool advance() {
         if (_current >= sizeof...(Steps)) {
-            return;
+            return false;
         }
-        execute_current();
+        return execute_current();
     }
 
     // Run all remaining steps, beginning with current index.
-    void resume() {
+    bool resume() {
         if (_current >= sizeof...(Steps)) {
-            return;
+            return false;
         }
-        execute_from(_current);
+        return execute_from(_current);
     }
 
     // Get step index and serialized arguments for current step so that they can be stored.
@@ -82,8 +84,14 @@ private:
         return [](steps_type& steps, current_arguments_type& data) -> uint8_t {
             using argument_type = std::decay_t<
                 typename signature<std::tuple_element_t<idx, steps_type>>::arg_type>;
-            data = std::get<idx>(steps)(std::get<argument_type>(data));
-            return idx + 1;
+            using return_type = std::decay_t<
+                typename signature<std::tuple_element_t<idx, steps_type>>::return_type>;
+            std::optional<return_type> tmp = std::get<idx>(steps)(std::get<argument_type>(data));
+            if (tmp.has_value()) {
+                data = tmp.value();
+                return idx + 1;
+            }
+            return idx;
         };
     }
 
@@ -96,18 +104,28 @@ private:
         return invoke_dispatch;
     }
 
-    inline void execute_from(uint8_t begin_idx) {
+    // It can be implemented in terms of 'is_finished()' + 'advance()' but that would mean extra
+    // function calls.
+    inline bool execute_from(uint8_t begin_idx) {
         constexpr auto table =
             invoke_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
+        size_t previous = 0;
         for (uint8_t i = begin_idx; i < sizeof...(Steps); ++i) {
+            previous = _current;
             _current = table[i](_steps, _current_args);
+            if (_current == previous) {
+                return false;
+            }
         }
+        return true;
     }
 
-    void execute_current() {
+    bool execute_current() {
         constexpr auto table =
             invoke_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
+        size_t previous = _current;
         _current = table[_current](_steps, _current_args);
+        return _current > previous;
     }
 
     // ----- Instantiate deserialization methods -----    

@@ -138,13 +138,18 @@ IntParameter fibo_final(const TwoIntParameter& in) {
     return IntParameter{in._a + in._b};
 }
 
+std::optional<EmptyParameter> breaker(const EmptyParameter &) {
+    std::cout << "  # Step output: breaker( EmptyParameter ) -> std::nullopt\n";
+    return std::nullopt;
+}
+
 // ---------- Test class, must be wrapped in lambda to be used in chain ----------
 
 class TestClass {
 public:
     explicit TestClass(int val) : _val{val} {}
 
-    // Will only compile if you wrap it to lambda.
+    // Will only compile if you wrap it into a lambda.
     EmptyParameter method(IntParameter& param) const {
         std::cout << "  # Step output: class method( IntParameter{ "
             << param._value << " } ) -> EmptyParameter\n";
@@ -380,6 +385,37 @@ bool TestLocalStorageWrapperWithContext() {
         && Context::use_count == 3 && Context::dtor_count == 3;
 }
 
+bool TestChainBreakWithOptional() {
+    auto steps_with_break = StepsChain{
+        boo,
+        breaker,
+        hoo};
+    std::cout << "\nRunning broken sequence:\n";
+    steps_with_break.run("");
+    if (steps_with_break.is_finished()) {
+        return false;
+    }
+
+    std::cout << "\nRunning broken sequence with 'advance()':\n";
+    steps_with_break.initialize("");
+    while(steps_with_break.advance()) {
+        // pass
+    };
+    if (steps_with_break.is_finished()) {
+        return false;
+    }
+    auto steps_with_optional_return = StepsChain{
+        boo,
+        [](EmptyParameter &p) -> std::optional<EmptyParameter> {
+            std::cout << "  # Step output: anon lambda( EmptyParameter ) -> std::optional\n";
+            return EmptyParameter{};
+        },
+        hoo};
+    std::cout << "\nRunning sequence with lambda returning optional:\n";
+    steps_with_optional_return.run("");
+    return !steps_with_break.is_finished() && steps_with_optional_return.is_finished();
+}
+
 constexpr size_t SIZE = 10000;
 
 void PerformancePolymorphicWrapper() {
@@ -430,6 +466,7 @@ int main(int argc, char **argv) {
     std::cout << (TestChainWithContextByVal() ? "# [PASS]\n" : "# [FAIL]\n");
     std::cout << (TestWrapperWithContext() ? "# [PASS]\n" : "# [FAIL]\n");
     std::cout << (TestLocalStorageWrapperWithContext() ? "# [PASS]\n" : "# [FAIL]\n");
+    std::cout << (TestChainBreakWithOptional() ? "# [PASS]\n" : "# [FAIL]\n");
 
     // Performance numbers here are not really comparable, they must be run independently
     // multiple times, and then statistics can be compared. They are here just for an overview

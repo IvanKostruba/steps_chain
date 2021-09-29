@@ -9,10 +9,10 @@ namespace steps_chain {
 namespace _detail {
 
     struct vtable {
-        void (*run)(void* ptr, std::string parameters, uint8_t begin);
-        void (*initialize)(void* ptr, std::string parameters, uint8_t begin);
-        void (*advance)(void* ptr);
-        void (*resume)(void* ptr);
+        bool (*run)(void* ptr, std::string parameters, uint8_t begin);
+        bool (*initialize)(void* ptr, std::string parameters, uint8_t begin);
+        bool (*advance)(void* ptr);
+        bool (*resume)(void* ptr);
         std::tuple<uint8_t, std::string> (*get_current_state)(const void* ptr);
         bool (*is_finished)(const void* ptr);
 
@@ -24,16 +24,16 @@ namespace _detail {
     template<typename Chain>
     constexpr vtable vtable_for {
         [](void* ptr, std::string parameters, uint8_t begin) {
-            static_cast<Chain*>(ptr)->run(std::move(parameters), begin);
+            return static_cast<Chain*>(ptr)->run(std::move(parameters), begin);
         },
         [](void* ptr, std::string parameters, uint8_t begin) {
-            static_cast<Chain*>(ptr)->initialize(std::move(parameters), begin);
+            return static_cast<Chain*>(ptr)->initialize(std::move(parameters), begin);
         },
         [](void* ptr) {
-            static_cast<Chain*>(ptr)->advance();
+            return static_cast<Chain*>(ptr)->advance();
         },
         [](void* ptr) {
-            static_cast<Chain*>(ptr)->resume();
+            return static_cast<Chain*>(ptr)->resume();
         },
         [](const void* ptr) -> std::tuple<uint8_t, std::string> {
             return static_cast<const Chain*>(ptr)->get_current_state();
@@ -57,19 +57,19 @@ namespace _detail {
     constexpr vtable vtable_ctx_for {
         [](void* ptr, std::string parameters, uint8_t begin) {
             auto* p = static_cast<std::pair<Chain, Context>*>(ptr);
-            p->first.run(std::move(parameters), p->second, begin);
+            return p->first.run(std::move(parameters), p->second, begin);
         },
         [](void* ptr, std::string parameters, uint8_t begin) {;
-            static_cast<std::pair<Chain, Context>*>(ptr)->first
+            return static_cast<std::pair<Chain, Context>*>(ptr)->first
                 .initialize(std::move(parameters), begin);
         },
         [](void* ptr) {
             auto* p = static_cast<std::pair<Chain, Context>*>(ptr);
-            p->first.advance(p->second);
+            return p->first.advance(p->second);
         },
         [](void* ptr) {
             auto* p = static_cast<std::pair<Chain, Context>*>(ptr);
-            p->first.resume(p->second);
+            return p->first.resume(p->second);
         },
         [](const void* ptr) -> std::tuple<uint8_t, std::string> {
             return static_cast<const std::pair<Chain, Context>*>(ptr)->first.get_current_state();
@@ -128,7 +128,7 @@ public:
     }
 
     // Copy/move operations will fail if right operand will be default-constructed wrapper.
-    // For now I will not add handlig for that, as that would be a pessimization. Such assignments
+    // For now I will not add handling for that, as that would be a pessimization. Such assignments
     // are unlikely and will lead to a crash, so handling will be added if necessary.
     ChainWrapperLS(const ChainWrapperLS& other) {
         other.vtable_->clone(&buf_, &other.buf_);
@@ -159,20 +159,20 @@ public:
         return *this;
     }
 
-    void run(std::string parameters, uint8_t begin = 0) {
-        vtable_->run(&buf_, std::move(parameters), begin);
+    bool run(std::string parameters, uint8_t begin = 0) {
+        return vtable_->run(&buf_, std::move(parameters), begin);
     }
 
-    void initialize(std::string parameters, uint8_t begin = 0) {
-        vtable_->initialize(&buf_, std::move(parameters), begin);
+    bool initialize(std::string parameters, uint8_t begin = 0) {
+        return vtable_->initialize(&buf_, std::move(parameters), begin);
     }
 
-    void advance() {
-        vtable_->advance(&buf_);
+    bool advance() {
+        return vtable_->advance(&buf_);
     }
 
-    void resume() {
-        vtable_->resume(&buf_);
+    bool resume() {
+        return vtable_->resume(&buf_);
     }
 
     std::tuple<uint8_t, std::string> get_current_state() const {

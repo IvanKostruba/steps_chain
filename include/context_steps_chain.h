@@ -35,41 +35,43 @@ public:
         "Context must be passed by value or by const reference.");
     static_assert(are_chainable<Steps...>(),
                   "Return type of the previous function must be the same as argument type of the " \
-                  "next, and second argument ('context') types must be identical.");
+                  "next, and second argument ('context') types must be identical." \
+                  "If you use optional return type, next function argument should not be optional");
 
     ContextStepsChain(Steps... steps) : _steps{steps...}, _current{0} {}
 
     // Run all remaining steps, beginnig with given index.
-    void run(std::string parameters, context_type ctx, uint8_t begin_idx = 0) {
+    bool run(std::string parameters, context_type ctx, uint8_t begin_idx = 0) {
         if (begin_idx >= sizeof...(Steps)) {
-            return;
+            return false;
         }
         initialize(std::move(parameters), begin_idx);
-        execute_from(begin_idx, std::move(ctx));
+        return execute_from(begin_idx, std::move(ctx));
     }
 
     // Just initializer, intended to be used in pair with advance()
-    void initialize(std::string parameters, uint8_t current_idx = 0) {
+    bool initialize(std::string parameters, uint8_t current_idx = 0) {
         if (current_idx >= sizeof...(Steps)) {
-            return;
+            return false;
         }
         deserialize_arguments(current_idx, std::move(parameters));
         _current = current_idx;
+        return true;
     }
 
-    void advance(context_type ctx) {
+    bool advance(context_type ctx) {
         if (_current >= sizeof...(Steps)) {
-            return;
+            return false;
         }
-        execute_current(std::move(ctx));
+        return execute_current(std::move(ctx));
     }
 
     // Run all remaining steps, beginning with current index.
-    void resume(context_type ctx) {
+    bool resume(context_type ctx) {
         if (_current >= sizeof...(Steps)) {
-            return;
+            return false;
         }
-        execute_from(_current, std::move(ctx));
+        return execute_from(_current, std::move(ctx));
     }
 
     // Get step index and serialized arguments for current step so that they can be stored.
@@ -88,8 +90,15 @@ private:
         return [](steps_type& steps, current_arguments_type& data, context_type ctx) -> uint8_t {
             using argument_type = std::decay_t<
                 typename signature<std::tuple_element_t<idx, steps_type>>::arg_type>;
-            data = std::get<idx>(steps)(std::get<argument_type>(data), std::move(ctx));
-            return idx + 1;
+            using return_type = std::decay_t<
+                typename signature<std::tuple_element_t<idx, steps_type>>::return_type>;
+            std::optional<return_type> tmp = 
+                std::get<idx>(steps)(std::get<argument_type>(data), std::move(ctx));
+            if (tmp.has_value()) {
+                data = tmp.value();
+                return idx + 1;
+            }
+            return idx;
         };
     }
 
@@ -106,18 +115,26 @@ private:
         return invoke_dispatch;
     }
 
-    void execute_from(uint8_t begin_idx, context_type ctx) {
+    bool execute_from(uint8_t begin_idx, context_type ctx) {
         constexpr auto table =
             invoke_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
+        size_t previous = 0;
         for (uint8_t i = begin_idx; i < sizeof...(Steps); ++i) {
+            previous = _current;
             _current = table[i](_steps, _current_args, ctx);
+            if (_current == previous) {
+                return false;
+            }
         }
+        return true;
     }
 
-    void execute_current(context_type ctx) {
+    bool execute_current(context_type ctx) {
         constexpr auto table =
             invoke_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
+        size_t previous = _current;
         _current = table[_current](_steps, _current_args, std::move(ctx));
+        return _current > previous;
     }
 
     // ----- Instantiate deserialization methods -----    

@@ -33,20 +33,24 @@ public:
     }
     ChainWrapper& operator=(ChainWrapper&&) noexcept = default;
 
-    void run(std::string parameters, uint8_t begin = 0) {
-        if(_self) { _self->run(std::move(parameters), begin); }
+    bool run(std::string parameters, uint8_t begin = 0) {
+        if(_self) { return _self->run(std::move(parameters), begin); }
+        else { return false; }
     }
 
-    void initialize(std::string parameters, uint8_t begin = 0) {
-        if(_self) { _self->initialize(std::move(parameters), begin); }
+    bool initialize(std::string parameters, uint8_t begin = 0) {
+        if(_self) { return _self->initialize(std::move(parameters), begin); }
+        else { return false; }
     }
 
-    void advance() {
-        if(_self) { _self->advance(); }
+    bool advance() {
+        if(_self) { return _self->advance(); }
+        else { return false; }
     }
 
-    void resume() {
-        if(_self) { _self->resume(); }
+    bool resume() {
+        if(_self) { return _self->resume(); }
+        else { return false; }
     }
 
     std::tuple<uint8_t, std::string> get_current_state() const {
@@ -64,10 +68,10 @@ private:
         virtual ~chain_concept() = default;
         virtual std::unique_ptr<chain_concept> copy() = 0;
 
-        virtual void run(std::string parameters, uint8_t begin) = 0;
-        virtual void initialize(std::string parameters, uint8_t begin) = 0;
-        virtual void advance() = 0;
-        virtual void resume() = 0;
+        virtual bool run(std::string parameters, uint8_t begin) = 0;
+        virtual bool initialize(std::string parameters, uint8_t begin) = 0;
+        virtual bool advance() = 0;
+        virtual bool resume() = 0;
         virtual std::tuple<uint8_t, std::string> get_current_state() const = 0;
         virtual bool is_finished() const = 0;
     };
@@ -81,17 +85,17 @@ private:
             return std::make_unique<model>(*this);
         }
 
-        void run(std::string parameters, uint8_t begin) override {
-            _data.run(std::move(parameters), begin);
+        bool run(std::string parameters, uint8_t begin) override {
+            return _data.run(std::move(parameters), begin);
         }
-        void initialize(std::string parameters, uint8_t begin) override {
-            _data.initialize(std::move(parameters), begin);
+        bool initialize(std::string parameters, uint8_t begin) override {
+            return _data.initialize(std::move(parameters), begin);
         }
-        void advance() override {
-            _data.advance();
+        bool advance() override {
+            return _data.advance();
         }
-        void resume() override {
-            _data.resume();
+        bool resume() override {
+            return _data.resume();
         }
         std::tuple<uint8_t, std::string> get_current_state() const override {
             return _data.get_current_state();
@@ -112,17 +116,17 @@ private:
             return std::make_unique<context_model>(*this);
         }
 
-        void run(std::string parameters, uint8_t begin) override {
-            _data.run(std::move(parameters), _context, begin);
+        bool run(std::string parameters, uint8_t begin) override {
+            return _data.run(std::move(parameters), _context, begin);
         }
-        void initialize(std::string parameters, uint8_t begin) override {
-            _data.initialize(std::move(parameters), begin);
+        bool initialize(std::string parameters, uint8_t begin) override {
+            return _data.initialize(std::move(parameters), begin);
         }
-        void advance() override {
-            _data.advance(_context);
+        bool advance() override {
+            return _data.advance(_context);
         }
-        void resume() override {
-            _data.resume(_context);
+        bool resume() override {
+            return _data.resume(_context);
         }
         std::tuple<uint8_t, std::string> get_current_state() const override {
             return _data.get_current_state();

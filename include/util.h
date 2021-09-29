@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -58,6 +59,16 @@ struct signature<R (*)()> : public signature<R()> {};
 template <typename R, typename T, typename... Ts>
 struct signature<R (*)(T, Ts...)> : public signature<R(T, Ts...)> {};
 
+// Match with function pointers with optional return type
+template <typename R, typename T>
+struct signature<std::optional<R> (*)(T)> : public signature<R(T)> {};
+
+template <typename R>
+struct signature<std::optional<R> (*)()> : public signature<R()> {};
+
+template <typename R, typename T, typename... Ts>
+struct signature<std::optional<R> (*)(T, Ts...)> : public signature<R(T, Ts...)> {};
+
 // Match with functors and lambdas and class method pointers
 template <typename R, typename C, typename T>
 struct signature<R (C::*)(T) const> : public signature<R(T)> {};
@@ -67,6 +78,16 @@ struct signature<R (C::*)() const> : public signature<R()> {};
 
 template <typename R, typename C, typename T, typename... Ts>
 struct signature<R (C::*)(T, Ts...) const> : public signature<R(T, Ts...)> {};
+
+// Match with functors and lambdas and class method pointers with optional return type
+template <typename R, typename C, typename T>
+struct signature<std::optional<R> (C::*)(T) const> : public signature<R(T)> {};
+
+template <typename R, typename C>
+struct signature<std::optional<R> (C::*)() const> : public signature<R()> {};
+
+template <typename R, typename C, typename T, typename... Ts>
+struct signature<std::optional<R> (C::*)(T, Ts...) const> : public signature<R(T, Ts...)> {};
 
 //---------- SFINAE parameters type requirements ----------
 
