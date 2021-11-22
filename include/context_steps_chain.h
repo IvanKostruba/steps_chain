@@ -51,12 +51,9 @@ public:
 
     // Just initializer, intended to be used in pair with advance()
     bool initialize(std::string parameters, uint8_t current_idx = 0) {
-        if (current_idx >= sizeof...(Steps)) {
-            return false;
-        }
-        deserialize_arguments(current_idx, std::move(parameters));
         _current = current_idx;
-        return true;
+        deserialize_arguments(std::move(parameters));
+        return current_idx < sizeof...(Steps);
     }
 
     bool advance(context_type ctx) {
@@ -139,10 +136,15 @@ private:
 
     // ----- Instantiate deserialization methods -----    
 
-    inline void deserialize_arguments(uint8_t step, std::string parameters) {
-        constexpr auto table =
-            marshalling::deserialize_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
-        table[step](_current_args, std::move(parameters));
+    inline void deserialize_arguments(std::string parameters) {
+        if (_current < sizeof...(Steps)) {
+            constexpr auto table =
+                marshalling::deserialize_dispatch_table(std::make_index_sequence<sizeof...(Steps)>{});
+            table[_current](_current_args, std::move(parameters));
+        }
+        else {
+            _current_args = result_type{std::move(parameters)};
+        }
     }
 
     // ----- Instantiate serialization methods -----
