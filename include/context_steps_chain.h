@@ -165,16 +165,16 @@ private:
     using result_type = std::decay_t<
         typename signature<std::tuple_element_t<sizeof...(Steps) - 1, steps_type>>::return_type>;
     using current_arguments_type =
-        unique_variant<std::decay_t<typename signature<Steps>::arg_type>..., result_type>;
+        unique_variant<std::monostate, std::decay_t<typename signature<Steps>::arg_type>..., result_type>;
     using marshalling = MarshallingInvokeTables<steps_type, current_arguments_type>;
 
-    using all_de_serializable =
+    using all_serializable =
         typename std::conditional<
             is_serializable<result_type>::value &&
                 (is_serializable<std::decay_t<typename signature<Steps>::arg_type>>::value && ...),
             std::true_type,
             std::false_type>::type;
-    static_assert(all_de_serializable::value,
+    static_assert(all_serializable::value,
                   "All arguments and return type of the last step must be (de-)serializable.");
 
     steps_type _steps;
