@@ -93,10 +93,9 @@ namespace _detail {
 
 };  // namespace _detail
 
-// This wrapper will store its chain in local buffer, it makes it way  faster to copy/move around
-// as no heap allocations will occur. It is also slightly faster to dispatch calls
-// (~13% by measurements on my machine). The downside is that really big (ans even no so big,
-// depending on OS) containers can cause stack overflow.
+// This wrapper will store its content in local buffer, so no heap allocations will occur.
+// Everything will be on the stack, so big containers with these wrappers may cause overflow.
+// It is also slightly faster to dispatch calls.
 
 class ChainWrapperLS {
 public:
@@ -127,7 +126,7 @@ public:
         }
     }
 
-    // Copy/move operations will fail if right operand will be default-constructed wrapper.
+    // Copy/move operations will fail if right operand will be a default-constructed wrapper.
     // For now I will not add handling for that, as that would be a pessimization. Such assignments
     // are unlikely and will lead to a crash, so handling will be added if necessary.
     ChainWrapperLS(const ChainWrapperLS& other) {

@@ -165,7 +165,7 @@ private:
     using result_type = std::decay_t<
         typename signature<std::tuple_element_t<sizeof...(Steps) - 1, steps_type>>::return_type>;
     using current_arguments_type =
-        unique_variant<std::monostate, std::decay_t<typename signature<Steps>::arg_type>..., result_type>;
+        unique_variant<std::decay_t<typename signature<Steps>::arg_type>..., result_type>;
     using marshalling = MarshallingInvokeTables<steps_type, current_arguments_type>;
 
     using all_serializable =

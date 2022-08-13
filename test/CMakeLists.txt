@@ -14,7 +14,7 @@ if (test)
 
 	include_directories(${PROJECT_SOURCE_DIR}/include)
 
-	add_executable(runTests raw_chain_tests.cpp)
+	add_executable(runTests "raw_chain_tests.cpp" "raw_context_chain_tests.cpp")
 
 	target_link_libraries(runTests PRIVATE gtest_main)
 

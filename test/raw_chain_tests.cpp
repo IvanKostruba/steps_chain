@@ -1,43 +1,9 @@
 #include "parameters.h"
 #include "steps_chain.h"
 
+#include <optional>
+
 #include <gtest/gtest.h>
-
-// TEST FUNCTIONS
-
-//EmptyParameter foo(const EmptyParameter&) {
-//    return EmptyParameter{};
-//}
-//
-//EmptyParameter foo_arg_by_value(EmptyParameter) {
-//    return EmptyParameter{};
-//}
-//
-//EmptyParameter foo_throw_once(const EmptyParameter&) {
-//    static size_t flag = 0;
-//    if (++flag == 1) {
-//        throw(1);
-//    }
-//    return EmptyParameter{};
-//}
-//
-//auto foo_returns_int(EmptyParameter&) {
-//    return IntParameter{ 11 };
-//}
-//
-//std::optional<EmptyParameter> foo_chain_breaker(const EmptyParameter&) {
-//    return std::nullopt;
-//}
-//
-//TwoIntParameter fibo(const TwoIntParameter& in) {
-//    return TwoIntParameter{ in._b, in._a + in._b };
-//}
-//
-//IntParameter fibo_final(const TwoIntParameter& in) {
-//    return IntParameter{ in._a + in._b };
-//}
-
-// TESTS START
 
 IntParameter doubleValue(const IntParameter& data) {
     return IntParameter{ data._value * 2 };
@@ -94,6 +60,15 @@ auto foo_returns_int(EmptyParameter&) {
     return IntParameter{ 11 };
 }
 
+// ---------- Testing helpers::are_chainable  ----------
+
+static_assert(steps_chain::helpers::are_chainable<decltype(foo)>(),
+    "Single-element chain should be always valid!");
+static_assert(!steps_chain::helpers::are_chainable<decltype(foo_returns_int), decltype(foo)>(),
+    "Mismatched signatures must be detected!");
+
+// -----------------------------------------------------
+
 TEST(RawChainTests, ResumeAfterException) {
     auto steps_with_fail = steps_chain::StepsChain{
         foo,
@@ -117,6 +92,23 @@ TEST(RawChainTests, ResumeAfterException) {
     const auto [step_idx_after, data_after] = steps_with_fail.get_current_state();
     ASSERT_EQ(step_idx_after, 3);
     ASSERT_EQ(data_after, "11");  // Hardcoded value from foo_returns_int
+}
+
+std::optional<EmptyParameter> interrupt(const EmptyParameter&) {
+    return std::nullopt;
+}
+
+TEST(RawChainTests, ChainInterruption) {
+    auto steps_with_interrupt = steps_chain::StepsChain{
+        foo,
+        interrupt,
+        foo_returns_int
+    };
+    steps_with_interrupt.run("");
+    ASSERT_FALSE(steps_with_interrupt.is_finished());
+    const auto [step_idx_after, data_after] = steps_with_interrupt.get_current_state();
+    ASSERT_EQ(step_idx_after, 1);
+    ASSERT_EQ(data_after, "EmptyParameter");
 }
 
 TEST(RawChainTests, LambdasChain_StartFromMiddle) {
