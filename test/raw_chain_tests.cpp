@@ -5,9 +5,13 @@
 
 #include <gtest/gtest.h>
 
+namespace {
+
 IntParameter doubleValue(const IntParameter& data) {
     return IntParameter{ data._value * 2 };
 }
+
+} // anonymous namespace
 
 TEST(RawChainTests, SingleStepChain) {
     auto single_step = steps_chain::StepsChain{
@@ -86,7 +90,6 @@ TEST(RawChainTests, ResumeAfterException) {
         ASSERT_EQ(step_idx_exept, 1);
         ASSERT_EQ(data_except, "EmptyParameter");
         steps_with_fail.resume();
-
     }
     ASSERT_TRUE(steps_with_fail.is_finished());
     const auto [step_idx_after, data_after] = steps_with_fail.get_current_state();

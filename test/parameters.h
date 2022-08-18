@@ -1,3 +1,5 @@
+#pragma once
+
 #include "util.h"
 
 #include "static_assert_tests.h"

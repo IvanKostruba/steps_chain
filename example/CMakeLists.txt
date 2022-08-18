@@ -1,5 +1,3 @@
-include_directories(${PROJECT_SOURCE_DIR}/include)
-
 add_executable(runExample example.cpp)
-
+target_link_libraries(runExample PRIVATE steps_chain)
 install(TARGETS runExample DESTINATION bin)
