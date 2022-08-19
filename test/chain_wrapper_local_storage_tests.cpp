@@ -1,7 +1,7 @@
 #include "parameters.h"
 #include <steps_chain.h>
 #include <context_steps_chain.h>
-#include <chain_wrapper.h>
+#include <local_storage_wrapper.h>
 
 #include <optional>
 #include <string>
@@ -27,8 +27,8 @@ auto make_chain() {
 
 } // anonymous namespace
 
-TEST(ChainWrapperTests, IndependentState) {
-    auto operationSequences = std::vector<steps_chain::ChainWrapper>{ make_chain(), make_chain() };
+TEST(ChainWrapperLSTests, IndependentState) {
+    auto operationSequences = std::vector<steps_chain::ChainWrapperLS>{ make_chain(), make_chain() };
     operationSequences.push_back(make_chain());
     operationSequences[0].initialize("1", 1);  // Start from the second step
     const auto [step_idx_init_0, data_init_0] = operationSequences[0].get_current_state();
@@ -61,7 +61,7 @@ enum class Element {
     FOURTH
 };
 
-steps_chain::ChainWrapper progressionFactory(Element p) {
+steps_chain::ChainWrapperLS progressionFactory(Element p) {
     switch (p) {
     case Element::SECOND:
         return steps_chain::StepsChain{ doubleValue };
@@ -71,7 +71,7 @@ steps_chain::ChainWrapper progressionFactory(Element p) {
         return steps_chain::StepsChain{
             doubleValue,
             doubleValue,
-            [](const IntParameter& data){ return IntParameter{ data._value * 2 }; }
+            [](const IntParameter& data) { return IntParameter{ data._value * 2 }; }
         };
     }
 }
@@ -79,8 +79,8 @@ steps_chain::ChainWrapper progressionFactory(Element p) {
 };  // anonymous namespace
 
 // Step chains of different lengths or of different callables are different types.
-TEST(ChainWrapperTests, WrappingDifferentChainTypes) {
-    std::unordered_map<int, steps_chain::ChainWrapper> elem;
+TEST(ChainWrapperLSTests, WrappingDifferentChainTypes) {
+    std::unordered_map<int, steps_chain::ChainWrapperLS> elem;
     elem[2] = progressionFactory(Element::SECOND);
     elem[3] = progressionFactory(Element::THIRD);
     elem[4] = progressionFactory(Element::FOURTH);
@@ -102,6 +102,7 @@ TEST(ChainWrapperTests, WrappingDifferentChainTypes) {
     );
 }
 
+
 namespace {
 
 struct MockUserDB {
@@ -120,13 +121,13 @@ IntParameter usersCount(EmptyParameter p, const MockUserDB& db) {
 
 // Even steps with and without context can be wrapped in the same manner and put into the same
 // container. Each wrapped chain with context has an individual context instance.
-TEST(ChainWrapperTests, WrappingChainsWithContext) {
-    std::unordered_map<std::string, steps_chain::ChainWrapper> processes;
-    processes["userCount_10"] = steps_chain::ChainWrapper{
+TEST(ChainWrapperLSTests, WrappingChainsWithContext) {
+    std::unordered_map<std::string, steps_chain::ChainWrapperLS> processes;
+    processes["userCount_10"] = steps_chain::ChainWrapperLS{
         steps_chain::ContextStepsChain{usersCount}, MockUserDB{10} };
-    processes["userCount_20"] = steps_chain::ChainWrapper{
+    processes["userCount_20"] = steps_chain::ChainWrapperLS{
         steps_chain::ContextStepsChain{usersCount}, MockUserDB{20} };
-    processes["quadruple"] = steps_chain::ChainWrapper{
+    processes["quadruple"] = steps_chain::ChainWrapperLS{
         steps_chain::StepsChain{ doubleValue, doubleValue } };
     processes["userCount_10"].run("");
     const auto [step_idx_after_0, data_after_0] = processes["userCount_10"].get_current_state();

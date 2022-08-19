@@ -15,7 +15,7 @@ add_executable(
 	"raw_chain_tests.cpp"
 	"raw_context_chain_tests.cpp"
 	"chain_wrapper_tests.cpp"
-)
+	"chain_wrapper_local_storage_tests.cpp")
 
 target_link_libraries(runTests PRIVATE gtest_main steps_chain)
 
