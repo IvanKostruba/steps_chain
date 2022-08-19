@@ -4,6 +4,7 @@
 #include "chain_wrapper.h"
 
 #include <optional>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -73,7 +74,7 @@ steps_chain::ChainWrapper progressionFactory(Element p) {
     }
 }
 
-// step chains of different lengths or of different callables are different types.
+// Step chains of different lengths or of different callables are different types.
 TEST(ChainWrapperTests, WrappingDifferentChainTypes) {
     std::unordered_map<int, steps_chain::ChainWrapper> elem;
     elem[2] = progressionFactory(Element::SECOND);
@@ -94,5 +95,46 @@ TEST(ChainWrapperTests, WrappingDifferentChainTypes) {
     ASSERT_TRUE(elem[2].is_finished()
         && elem[3].is_finished()
         && elem[4].is_finished()
+    );
+}
+
+struct MockUserDB {
+    explicit MockUserDB(int count) : _userCount{ count } {}
+
+    int getUserCount() const { return _userCount; }
+
+    int _userCount;
+};
+
+IntParameter usersCount(EmptyParameter p, const MockUserDB& db) {
+    return IntParameter{ db.getUserCount() };
+} 
+
+// Even steps with and without context can be wrapped in the same manner and put into the same
+// container. Each wrapped chain with context has an individual context instance.
+TEST(ChainWrapperTests, WrappingChainsWithContext) {
+    std::unordered_map<std::string, steps_chain::ChainWrapper> processes;
+    processes["userCount_10"] = steps_chain::ChainWrapper{
+        steps_chain::ContextStepsChain{usersCount}, MockUserDB{10} };
+    processes["userCount_20"] = steps_chain::ChainWrapper{
+        steps_chain::ContextStepsChain{usersCount}, MockUserDB{20} };
+    processes["quadruple"] = steps_chain::ChainWrapper{
+        steps_chain::StepsChain{ doubleValue, doubleValue } };
+    processes["userCount_10"].run("");
+    const auto [step_idx_after_0, data_after_0] = processes["userCount_10"].get_current_state();
+    ASSERT_EQ(step_idx_after_0, 1);
+    ASSERT_EQ(data_after_0, "10");
+    processes["userCount_20"].run("");
+    const auto [step_idx_after_1, data_after_1] = processes["userCount_20"].get_current_state();
+    ASSERT_EQ(step_idx_after_1, 1);
+    ASSERT_EQ(data_after_1, "20");
+    processes["quadruple"].initialize("1");
+    processes["quadruple"].resume();
+    const auto [step_idx_after_2, data_after_2] = processes["quadruple"].get_current_state();
+    ASSERT_EQ(step_idx_after_2, 2);
+    ASSERT_EQ(data_after_2, "4");
+    ASSERT_TRUE(processes["userCount_10"].is_finished()
+        && processes["userCount_20"].is_finished()
+        && processes["quadruple"].is_finished()
     );
 }
