@@ -13,9 +13,11 @@ This is a header-only library, so you can just copy it into your project.
 Alternatively, you can clone the repo and run:
 
 > mkdir build && cd build
+
 > cmake .. && cmake --install .
 
 And then in your CMakeLists.txt
 
-find_package(steps_chain CONFIG REQUIRED)
-target_link_libraries(yourBinary PRIVATE steps_chain)
+> find_package(steps_chain CONFIG REQUIRED)
+
+> target_link_libraries(yourBinary PRIVATE steps_chain)
