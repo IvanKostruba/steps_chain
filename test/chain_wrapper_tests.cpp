@@ -25,7 +25,7 @@ auto make_chain() {
     };
 }
 
-} // anonymous namespace
+};  // anonymous namespace
 
 TEST(ChainWrapperTests, IndependentState) {
     auto operationSequences = std::vector<steps_chain::ChainWrapper>{ make_chain(), make_chain() };

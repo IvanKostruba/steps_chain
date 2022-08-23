@@ -26,6 +26,7 @@ struct MarshallingInvokeTables {
         return deserialize_dispatch;
     }
 
+    // TODO: add static assert for the required 'serialize' method signature (const)
     template <size_t idx>
     static constexpr auto make_serializer() {
         return [](const Arg& data) -> std::string {
