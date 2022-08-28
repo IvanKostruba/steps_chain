@@ -21,3 +21,5 @@ And then in your CMakeLists.txt
 > find_package(steps_chain CONFIG REQUIRED)
 
 > target_link_libraries(yourBinary PRIVATE steps_chain)
+
+Provide -DSTEPS_CHAIN_BUILD_TESTS=ON flag to build tests and/or -DSTEPS_CHAIN_BUILD_EXAMPLE=ON to build the example.
