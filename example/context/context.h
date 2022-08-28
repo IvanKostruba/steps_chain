@@ -10,6 +10,9 @@
 
 #include <memory>
 
+// This class purpose is to serve as an adapter between each step's interface and real I/O interface
+// so this class should be devoid of business logic and only translate one call to another.
+
 class PayoutContext : public PossibleRevertCtxI, public SanctionsScreeningCtxI,
 	public StartTransferCtxI, public UnloadAccountCtxI
 {

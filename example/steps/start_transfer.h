@@ -4,6 +4,9 @@
 
 #include <optional>
 
+// Each step defines an interface that business logic needs to interact with other modules.
+// This implements the Dependency Inversion principle - instead of depending on other modules,
+// business logic defines an interface, on which these modules will depend.
 class StartTransferCtxI {
 public:
 	struct TransactionInfo {

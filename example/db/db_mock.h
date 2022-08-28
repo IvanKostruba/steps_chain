@@ -12,6 +12,7 @@ public:
 		std::string parameters;
 	};
 	void setProcessData(const std::string& requestId, int8_t stepIdx, const std::string& parameters);
+	void updateProcessData(const std::string& requestId, const std::string& parameters);
 	RequestProcessRecord fetchProcessData(const std::string& requestId);
 
 	int fetchTransactionAmount(int transactionId);

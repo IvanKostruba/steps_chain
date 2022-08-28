@@ -13,6 +13,9 @@ steps_chain::ChainWrapper payoutProcess(
 	std::shared_ptr<DbMock> db,
 	std::shared_ptr<TimerMock> timer
 ) {
+	// Steps are desined with the Interface Segregation principle in mind, so they accept different
+	// types as their 'context'. So we have to wrap the steps in lambdas here, as ContextStepsChain
+	// requires identical type of 'context' as a second argument of all steps.
 	return steps_chain::ChainWrapper {
 		steps_chain::ContextStepsChain{
 			[](InitialData d,     std::shared_ptr<PayoutContext> c) { return unloadAccount(d, *c.get()); },

@@ -13,6 +13,9 @@ bool ApiMock::passScreening(const std::string& screeningData) {
 }
 
 bool ApiMock::unloadConsumerAccount(int consumerId, int amount) {
+	if (_balance[consumerId] < amount) {
+		return false;
+	}
 	_balance[consumerId] -= amount;
 	return true;
 }

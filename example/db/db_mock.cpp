@@ -5,6 +5,10 @@ void DbMock::setProcessData(
 	_processes[requestId] = RequestProcessRecord{ requestId, stepIdx, parameters };
 }
 
+void DbMock::updateProcessData(const std::string& requestId, const std::string& parameters) {
+	_processes[requestId].parameters = parameters;
+}
+
 DbMock::RequestProcessRecord DbMock::fetchProcessData(const std::string& requestId) {
 	return _processes[requestId];
 }

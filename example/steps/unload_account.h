@@ -3,6 +3,9 @@
 #include "../parameters/initial_data.h"
 #include "../parameters/transaction_data.h"
 
+// Each step defines an interface that business logic needs to interact with other modules.
+// This implements the Dependency Inversion principle - instead of depending on other modules,
+// business logic defines an interface, on which these modules will depend.
 class UnloadAccountCtxI {
 public:
 	virtual int createTransaction(
